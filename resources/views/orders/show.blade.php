@@ -46,6 +46,25 @@
         <span class="ms ms-fill" style="font-size:18px;">print</span>
         Cetak Struk
     </button>
+
+    {{-- Bluetooth Printer Controls --}}
+    <div style="display:inline-flex;align-items:center;gap:8px;border:1px solid #e2e8f0;background:#fff;border-radius:10px;padding:4px 8px;box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+        <button onclick="toggleBluetoothPrinter()" id="btn-connect-bt"
+                type="button"
+                style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;background:#f1f5f9;color:#475569;border-radius:8px;border:none;cursor:pointer;"
+                title="Hubungkan Printer Bluetooth">
+            <span class="ms ms-fill" style="font-size:16px;" id="bt-icon">bluetooth</span>
+        </button>
+        <span id="bt-status-badge" class="badge bg-slate-50 text-slate-500 border border-slate-200" style="font-size:10px;padding:2px 6px;">
+            <span id="bt-status-label">Printer Off</span>
+        </span>
+        <button onclick="printBluetooth()" id="btn-print-bt"
+                type="button"
+                style="display:inline-flex;align-items:center;gap:4px;padding:6px 12px;background:#2563eb;color:#fff;border-radius:8px;border:none;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit;">
+            <span class="ms ms-fill" style="font-size:15px;">print</span>
+            Cetak Bluetooth
+        </button>
+    </div>
 </div>
 
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -387,6 +406,15 @@
                 <span class="ms ms-fill" style="font-size:22px;">print</span>
                 Print Struk
             </button>
+
+            {{-- Print Bluetooth --}}
+            <button onclick="printBluetooth()"
+                    style="display:flex;align-items:center;justify-content:center;gap:10px;padding:15px;background:#2563eb;color:#fff;border-radius:14px;border:none;cursor:pointer;font-size:15px;font-weight:700;font-family:inherit;width:100%;transition:transform .15s,box-shadow .15s;box-shadow:0 4px 14px rgba(37,99,235,.35);"
+                    onmouseover="this.style.transform='scale(1.02)';this.style.boxShadow='0 6px 20px rgba(37,99,235,.5)'"
+                    onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 4px 14px rgba(37,99,235,.35)'">
+                <span class="ms ms-fill" style="font-size:22px;">bluetooth</span>
+                Cetak Bluetooth
+            </button>
         </div>
 
         {{-- Tombol Lewati --}}
@@ -496,6 +524,25 @@ function closeNewOrderModal() {
         #sidebar, .desktop-header { display: none !important; }
     }
 </style>
+<script id="order-data" type="application/json">
+{
+    "order_number": "{{ $order->order_number }}",
+    "created_at": "{{ $order->created_at->format('d/m/Y H:i') }}",
+    "customer_name": "{{ $order->customer_name }}",
+    "customer_phone": "{{ $order->customer_phone }}",
+    "service_type": "{{ str_replace('_',' ', ucfirst($order->service_type)) }}",
+    "weight": "{{ $order->weight }}",
+    "perfume": "{{ ucfirst($order->perfume) }}",
+    "speed": "{{ ucfirst($order->speed) }}",
+    "subtotal": {{ $order->subtotal }},
+    "speed_surcharge": {{ $order->speed_surcharge }},
+    "discount": {{ $order->discount }},
+    "total": {{ $order->total }},
+    "payment_status": "{{ $order->payment_status }}",
+    "payment_method": "{{ $order->payment_method ?? '' }}",
+    "estimated_done": "{{ $order->estimated_done ? $order->estimated_done->format('d/m/Y') : '' }}"
+}
+</script>
 <script>
 function openCancelModal() {
     const m = document.getElementById('cancelModal');
@@ -519,5 +566,293 @@ function closeRevertModal() {
     m.style.display = 'none';
     m.classList.add('hidden');
 }
+
+// ── Bluetooth Thermal Printer (ESC/POS) Integration ───────────────────
+class EscPosEncoder {
+    constructor() {
+        this.buffer = [];
+    }
+
+    initialize() {
+        this.buffer.push(0x1B, 0x40);
+        return this;
+    }
+
+    alignCenter() {
+        this.buffer.push(0x1B, 0x61, 0x01);
+        return this;
+    }
+
+    alignLeft() {
+        this.buffer.push(0x1B, 0x61, 0x00);
+        return this;
+    }
+
+    alignRight() {
+        this.buffer.push(0x1B, 0x61, 0x02);
+        return this;
+    }
+
+    bold(enabled) {
+        this.buffer.push(0x1B, 0x45, enabled ? 0x01 : 0x00);
+        return this;
+    }
+
+    size(width, height) {
+        let val = 0;
+        if (width) val |= 0x10;
+        if (height) val |= 0x01;
+        this.buffer.push(0x1D, 0x21, val);
+        return this;
+    }
+
+    text(str) {
+        const encoder = new TextEncoder();
+        const bytes = encoder.encode(str);
+        for (let i = 0; i < bytes.length; i++) {
+            this.buffer.push(bytes[i]);
+        }
+        return this;
+    }
+
+    line(str = "") {
+        this.text(str + "\n");
+        return this;
+    }
+
+    feed(lines = 1) {
+        for (let i = 0; i < lines; i++) {
+            this.buffer.push(0x0A);
+        }
+        return this;
+    }
+
+    getBytes() {
+        return new Uint8Array(this.buffer);
+    }
+}
+
+function formatRow(left, right, maxLen = 32) {
+    const spaceCount = maxLen - left.length - right.length;
+    if (spaceCount <= 0) {
+        return left + " " + right;
+    }
+    return left + " ".repeat(spaceCount) + right;
+}
+
+let printerCharacteristic = null;
+let printerDevice = null;
+const PRINTER_SERVICE_UUID = '000018f0-0000-1000-8000-00805f9b34fb';
+
+function updateBluetoothStatus(status, text) {
+    const badge = document.getElementById('bt-status-badge');
+    const label = document.getElementById('bt-status-label');
+    const icon = document.getElementById('bt-icon');
+    if (!badge || !label) return;
+
+    label.textContent = text;
+    
+    badge.className = 'badge';
+    if (status === 'connected') {
+        badge.style.background = '#ecfdf5';
+        badge.style.color = '#047857';
+        badge.style.border = '1px solid #a7f3d0';
+        if (icon) {
+            icon.style.background = '#10b981';
+            icon.style.color = '#fff';
+        }
+    } else if (status === 'connecting') {
+        badge.style.background = '#fffbeb';
+        badge.style.color = '#b45309';
+        badge.style.border = '1px solid #fde68a';
+        if (icon) {
+            icon.style.background = '#f59e0b';
+            icon.style.color = '#fff';
+        }
+    } else {
+        badge.style.background = '#f8fafc';
+        badge.style.color = '#64748b';
+        badge.style.border = '1px solid #e2e8f0';
+        if (icon) {
+            icon.style.background = '#e2e8f0';
+            icon.style.color = '#475569';
+        }
+    }
+}
+
+function onDisconnected() {
+    printerCharacteristic = null;
+    printerDevice = null;
+    updateBluetoothStatus('disconnected', 'Printer Off');
+}
+
+async function connectBluetoothPrinter() {
+    try {
+        updateBluetoothStatus('connecting', 'Mencari...');
+        
+        let device = null;
+        // 1. Cek apakah ada printer yang sudah diizinkan sebelumnya (fitur konek sekali)
+        if (navigator.bluetooth && navigator.bluetooth.getDevices) {
+            const devices = await navigator.bluetooth.getDevices();
+            if (devices.length > 0) {
+                device = devices[0];
+            }
+        }
+
+        // 2. Jika tidak ada, minta user memilih
+        if (!device) {
+            device = await navigator.bluetooth.requestDevice({
+                acceptAllDevices: true,
+                optionalServices: [PRINTER_SERVICE_UUID]
+            });
+        }
+
+        printerDevice = device;
+        device.addEventListener('gattserverdisconnected', onDisconnected);
+
+        updateBluetoothStatus('connecting', 'Koneksi...');
+        const server = await device.gatt.connect();
+
+        let service;
+        try {
+            service = await server.getPrimaryService(PRINTER_SERVICE_UUID);
+        } catch (e) {
+            const services = await server.getPrimaryServices();
+            if (services.length > 0) {
+                service = services[0];
+            } else {
+                throw new Error("GATT Service tidak ditemukan");
+            }
+        }
+
+        const characteristics = await service.getCharacteristics();
+        printerCharacteristic = characteristics.find(c => c.properties.write || c.properties.writeWithoutResponse);
+
+        if (!printerCharacteristic) {
+            throw new Error("Write characteristic tidak ditemukan");
+        }
+
+        updateBluetoothStatus('connected', device.name || 'Printer OK');
+        return true;
+    } catch (error) {
+        console.error("Bluetooth error:", error);
+        onDisconnected();
+        alert("Gagal koneksi printer: " + error.message);
+        return false;
+    }
+}
+
+async function toggleBluetoothPrinter() {
+    if (printerDevice && printerDevice.gatt.connected) {
+        printerDevice.gatt.disconnect();
+        onDisconnected();
+    } else {
+        await connectBluetoothPrinter();
+    }
+}
+
+async function printBluetooth() {
+    if (!navigator.bluetooth) {
+        alert("Web Bluetooth API tidak didukung di browser ini. Gunakan Google Chrome atau browser berbasis Chromium.");
+        return;
+    }
+
+    if (!printerCharacteristic) {
+        const connected = await connectBluetoothPrinter();
+        if (!connected) return;
+    }
+
+    try {
+        const orderData = JSON.parse(document.getElementById('order-data').textContent);
+        const encoder = new EscPosEncoder();
+        
+        encoder.initialize();
+        
+        // Header
+        encoder.alignCenter().bold(true).size(1, 1).line("LinenFlow").size(0, 0).bold(false);
+        encoder.line("Laundry Management System");
+        encoder.line("================================");
+
+        // Metadata
+        encoder.alignLeft();
+        encoder.line(`No. Order : ${orderData.order_number}`);
+        encoder.line(`Tanggal   : ${orderData.created_at}`);
+        encoder.line(`Pelanggan : ${orderData.customer_name}`);
+        encoder.line(`Telp      : ${orderData.customer_phone}`);
+        encoder.line("--------------------------------");
+
+        // Items/Layanan
+        if (orderData.service_type) encoder.line(`Layanan: ${orderData.service_type}`);
+        if (orderData.weight) encoder.line(`Berat: ${orderData.weight} kg`);
+        if (orderData.speed) encoder.line(`Kecepatan: ${orderData.speed}`);
+        if (orderData.perfume) encoder.line(`Parfum: ${orderData.perfume}`);
+        encoder.line("--------------------------------");
+
+        const formatNumber = (num) => new Intl.NumberFormat('id-ID').format(num);
+        
+        // Biaya
+        encoder.line(formatRow("Subtotal", `Rp ${formatNumber(orderData.subtotal)}`));
+        if (orderData.speed_surcharge > 0) {
+            encoder.line(formatRow("Surcharge", `Rp ${formatNumber(orderData.speed_surcharge)}`));
+        }
+        if (orderData.discount > 0) {
+            encoder.line(formatRow("Diskon", `-Rp ${formatNumber(orderData.discount)}`));
+        }
+        encoder.line("================================");
+
+        // Total
+        encoder.bold(true);
+        encoder.line(formatRow("TOTAL", `Rp ${formatNumber(orderData.total)}`));
+        encoder.bold(false);
+        encoder.line("================================");
+
+        // Status Bayar
+        encoder.line(`Pembayaran: ${orderData.payment_status === 'lunas' ? 'LUNAS' : 'BELUM LUNAS'}`);
+        if (orderData.payment_status === 'lunas' && orderData.payment_method) {
+            encoder.line(`Metode    : ${orderData.payment_method.toUpperCase()}`);
+        }
+
+        if (orderData.estimated_done) {
+            encoder.line("--------------------------------");
+            encoder.line(`Est. Selesai: ${orderData.estimated_done}`);
+        }
+
+        encoder.feed(1);
+        encoder.alignCenter();
+        encoder.line("Terima kasih atas");
+        encoder.line("kepercayaan Anda!");
+        encoder.line("Simpan struk ini sebagai");
+        encoder.line("bukti pembayaran");
+        encoder.feed(4); // spasi potong kertas
+        
+        const bytes = encoder.getBytes();
+        
+        // Kirim dalam potongan 20 bytes
+        const chunkSize = 20;
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+            const chunk = bytes.slice(i, i + chunkSize);
+            await printerCharacteristic.writeValue(chunk);
+            await new Promise(resolve => setTimeout(resolve, 30));
+        }
+        
+    } catch (error) {
+        console.error("Print gagal:", error);
+        alert("Gagal mencetak: " + error.message);
+    }
+}
+
+// Cek otomatis printer terpasang di background saat load
+window.addEventListener('DOMContentLoaded', async () => {
+    if (navigator.bluetooth && navigator.bluetooth.getDevices) {
+        try {
+            const devices = await navigator.bluetooth.getDevices();
+            if (devices.length > 0) {
+                updateBluetoothStatus('disconnected', `Siap: ${devices[0].name || 'Printer'}`);
+            }
+        } catch (e) {
+            console.error("Cek auto-connect gagal:", e);
+        }
+    }
+});
 </script>
 @endpush
