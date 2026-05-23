@@ -511,6 +511,12 @@ function closeNewOrderModal() {
         to   { opacity:1; transform:translateY(0) scale(1); }
     }
     @media print {
+        @page {
+            margin: 0;
+        }
+        body {
+            margin: 0;
+        }
         /* Sembunyikan semua elemen kecuali struk */
         body * { visibility: hidden !important; }
         #print-receipt, #print-receipt * { visibility: visible !important; }
