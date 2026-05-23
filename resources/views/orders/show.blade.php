@@ -1,0 +1,523 @@
+@extends('layouts.app')
+@section('title', 'Detail Pesanan – '.$order->order_number)
+
+@section('content')
+{{-- Action Bar --}}
+<div class="flex items-center gap-3 mb-6 flex-wrap">
+    <a href="{{ route('orders.index') }}" style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:10px;border:1px solid #e2e8f0;background:#fff;text-decoration:none;">
+        <span class="ms" style="color:#64748b;">arrow_back</span>
+    </a>
+    <div style="flex:1;min-width:0;">
+        <h1 style="font-size:18px;font-weight:800;color:#0f172a;font-family:monospace;margin:0;">{{ $order->order_number }}</h1>
+        <p style="font-size:12px;color:#94a3b8;margin:2px 0 0;">{{ $order->created_at->isoFormat('dddd, D MMMM Y · HH:mm') }}</p>
+    </div>
+    <span class="badge {{ $order->status_color }}" style="font-size:13px;padding:6px 14px;">
+        <span class="ms ms-fill">{{ $order->status_icon }}</span>
+        {{ $order->status_label }}
+    </span>
+
+    {{-- WhatsApp Button --}}
+    @php
+        $waPhone = preg_replace('/[^0-9]/', '', $order->customer_phone);
+        if (str_starts_with($waPhone, '0')) $waPhone = '62' . substr($waPhone, 1);
+        $portalUrl = url('/portal');
+        $waMsg = urlencode(
+            "Halo {$order->customer_name}, pesanan laundry Anda sudah masuk! 🧺\n\n" .
+            "📋 No. Order : {$order->order_number}\n" .
+            "👕 Layanan   : {$order->service_type} ({$order->weight} kg)\n" .
+            "💰 Total     : Rp " . number_format($order->total,0,',','.') . "\n" .
+            "📌 Status    : {$order->status_label}\n\n" .
+            "🔍 *Pantau status cucian Anda secara real-time di:*\n" .
+            "{$portalUrl}\n\n" .
+            "🔑 Login menggunakan nomor HP terdaftar:\n" .
+            "*{$order->customer_phone}*\n\n" .
+            "Terima kasih sudah mempercayakan cucian Anda kepada kami! 👍"
+        );
+    @endphp
+    <a href="https://wa.me/{{ $waPhone }}?text={{ $waMsg }}" target="_blank"
+       style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:#25D366;color:#fff;border-radius:10px;text-decoration:none;font-size:13px;font-weight:600;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        WhatsApp
+    </a>
+
+    {{-- Print Button --}}
+    <button onclick="window.print()" id="btn-print"
+            style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:#0d9488;color:#fff;border-radius:10px;border:none;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit;">
+        <span class="ms ms-fill" style="font-size:18px;">print</span>
+        Cetak Struk
+    </button>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    {{-- Left --}}
+    <div class="lg:col-span-2 space-y-5">
+
+        {{-- Customer Info --}}
+        <div class="bg-white rounded-2xl p-5 shadow-card border border-surface-border">
+            <h2 class="font-bold text-ink mb-4 flex items-center gap-2">
+                <span class="ms ms-fill text-primary">person</span> Pelanggan
+            </h2>
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+                    {{ strtoupper(substr($order->customer_name,0,1)) }}
+                </div>
+                <div>
+                    <p class="font-bold text-ink">{{ $order->customer_name }}</p>
+                    <p class="text-sm text-ink-muted">{{ $order->customer_phone }}</p>
+                    @if($order->customer)
+                    <span class="badge {{ $order->customer->member_badge_color }} mt-1">{{ $order->customer->member_level }}</span>
+                    @endif
+                </div>
+                @if($order->customer)
+                <a href="{{ route('customers.show', $order->customer) }}" class="ml-auto btn-secondary text-xs py-1.5 px-3">
+                    <span class="ms text-sm">person</span> Profil
+                </a>
+                @endif
+            </div>
+        </div>
+
+        {{-- Order Details --}}
+        <div class="bg-white rounded-2xl p-5 shadow-card border border-surface-border">
+            <h2 class="font-bold text-ink mb-4 flex items-center gap-2">
+                <span class="ms ms-fill text-primary">local_laundry_service</span> Detail Layanan
+            </h2>
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                <div class="bg-slate-50 rounded-xl p-3">
+                    <p class="text-xs text-ink-muted mb-1">Kategori</p>
+                    <p class="font-semibold text-ink capitalize">{{ $order->category }}</p>
+                </div>
+                @if($order->service_type)
+                <div class="bg-slate-50 rounded-xl p-3">
+                    <p class="text-xs text-ink-muted mb-1">Jenis Layanan</p>
+                    <p class="font-semibold text-ink">{{ str_replace('_',' ', ucfirst($order->service_type)) }}</p>
+                </div>
+                @endif
+                @if($order->weight)
+                <div class="bg-slate-50 rounded-xl p-3">
+                    <p class="text-xs text-ink-muted mb-1">Berat</p>
+                    <p class="font-semibold text-ink">{{ $order->weight }} kg</p>
+                </div>
+                @endif
+                @if($order->perfume)
+                <div class="bg-slate-50 rounded-xl p-3">
+                    <p class="text-xs text-ink-muted mb-1">Parfum</p>
+                    <p class="font-semibold text-ink capitalize">{{ $order->perfume }}</p>
+                </div>
+                @endif
+                <div class="bg-slate-50 rounded-xl p-3">
+                    <p class="text-xs text-ink-muted mb-1">Kecepatan</p>
+                    <p class="font-semibold text-ink capitalize">{{ $order->speed }}</p>
+                </div>
+                @if($order->estimated_done)
+                <div class="bg-slate-50 rounded-xl p-3">
+                    <p class="text-xs text-ink-muted mb-1">Est. Selesai</p>
+                    <p class="font-semibold text-ink">{{ $order->estimated_done->format('d M Y') }}</p>
+                </div>
+                @endif
+                @if($order->ironingStaff)
+                <div class="bg-slate-50 rounded-xl p-3">
+                    <p class="text-xs text-ink-muted mb-1">PJ Setrika</p>
+                    <p class="font-semibold text-ink">{{ $order->ironingStaff->name }}</p>
+                    @if($order->ironing_fee)
+                    <p class="text-xs text-primary mt-0.5">Fee: Rp {{ number_format($order->ironing_fee,0,',','.') }}</p>
+                    @endif
+                </div>
+                @endif
+            </div>
+            @if($order->notes)
+            <div class="mt-4 p-3 bg-amber-50 border border-amber-100 rounded-xl text-sm text-ink">
+                <span class="ms text-amber-500 text-sm">sticky_note_2</span>
+                <span class="ml-1">{{ $order->notes }}</span>
+            </div>
+            @endif
+        </div>
+
+        {{-- Queue Progress --}}
+        <div class="bg-white rounded-2xl p-5 shadow-card border border-surface-border">
+            <h2 class="font-bold text-ink mb-4 flex items-center gap-2">
+                <span class="ms ms-fill text-primary">timeline</span> Progress Antrian
+            </h2>
+            @php
+                $stages = ['antri','dicuci','dijemur','disetrika','siap_ambil','selesai'];
+                $currentIdx = array_search($order->status, $stages);
+            @endphp
+            <div class="flex items-center">
+                @foreach($stages as $i => $stage)
+                @php
+                    $done = $currentIdx !== false && $i <= $currentIdx;
+                    $current = $order->status === $stage;
+                    $icon = \App\Models\Order::$statusIcons[$stage];
+                    $label = \App\Models\Order::$statusLabels[$stage];
+                @endphp
+                <div class="flex flex-col items-center flex-1 relative">
+                    @if($i < count($stages)-1)
+                    <div class="absolute top-4 left-1/2 w-full h-0.5 {{ $done && !$current ? 'bg-primary' : 'bg-slate-200' }}"></div>
+                    @endif
+                    <div class="w-8 h-8 rounded-full flex items-center justify-center z-10 {{ $current ? 'bg-primary shadow-glow' : ($done ? 'bg-primary/80' : 'bg-slate-200') }}">
+                        <span class="ms ms-fill text-sm {{ $done ? 'text-white' : 'text-ink-faint' }}">{{ $icon }}</span>
+                    </div>
+                    <span class="text-[10px] text-ink-muted mt-1 text-center leading-tight hidden md:block">{{ $label }}</span>
+                </div>
+                @endforeach
+            </div>
+
+            {{-- Update Status --}}
+            @if(!in_array($order->status, ['selesai','dibatalkan']))
+            <form action="{{ route('orders.updateStatus', $order) }}" method="POST" class="mt-5 flex flex-wrap gap-2">
+                @csrf @method('PATCH')
+                @php
+                    $nextStatuses = array_slice($stages, $currentIdx !== false ? $currentIdx+1 : 0, 2);
+                    $prevStatus   = ($currentIdx !== false && $currentIdx > 0) ? $stages[$currentIdx - 1] : null;
+                @endphp
+
+                {{-- Tombol Kembali ke status sebelumnya --}}
+                @if($prevStatus)
+                <button type="button"
+                        onclick="openRevertModal('{{ $prevStatus }}', '{{ \App\Models\Order::$statusLabels[$prevStatus] }}')"
+                        class="btn-secondary text-sm px-4 py-2">
+                    <span class="ms ms-fill text-sm">undo</span>
+                    Kembali: {{ \App\Models\Order::$statusLabels[$prevStatus] }}
+                </button>
+                @endif
+
+                {{-- Tombol maju ke status berikutnya --}}
+                @foreach($nextStatuses as $next)
+                <button type="submit" name="status" value="{{ $next }}"
+                        class="btn-primary text-sm px-4 py-2">
+                    <span class="ms ms-fill text-sm">{{ \App\Models\Order::$statusIcons[$next] }}</span>
+                    Tandai: {{ \App\Models\Order::$statusLabels[$next] }}
+                </button>
+                @endforeach
+
+                {{-- Batalkan (buka modal konfirmasi) --}}
+                <button type="button"
+                        onclick="openCancelModal()"
+                        class="btn-danger text-sm px-4 py-2 ml-auto">
+                    <span class="ms text-sm">cancel</span> Batalkan
+                </button>
+            </form>
+            @endif
+        </div>
+    </div>
+
+    {{-- Right: Payment Summary --}}
+    <div class="space-y-4">
+        <div class="bg-white rounded-2xl p-5 shadow-card border border-surface-border">
+            <h2 class="font-bold text-ink mb-4 flex items-center gap-2">
+                <span class="ms ms-fill text-primary">receipt</span> Ringkasan Biaya
+            </h2>
+            <div class="space-y-3 text-sm">
+                <div class="flex justify-between">
+                    <span class="text-ink-muted">Subtotal</span>
+                    <span class="font-semibold">Rp {{ number_format($order->subtotal,0,',','.') }}</span>
+                </div>
+                @if($order->speed_surcharge > 0)
+                <div class="flex justify-between">
+                    <span class="text-ink-muted">Surcharge ({{ ucfirst($order->speed) }})</span>
+                    <span class="font-semibold text-amber-600">+ Rp {{ number_format($order->speed_surcharge,0,',','.') }}</span>
+                </div>
+                @endif
+                @if($order->discount > 0)
+                <div class="flex justify-between">
+                    <span class="text-ink-muted">Diskon</span>
+                    <span class="font-semibold text-red-500">- Rp {{ number_format($order->discount,0,',','.') }}</span>
+                </div>
+                @endif
+                <div class="border-t border-slate-100 pt-3 flex justify-between items-end">
+                    <span class="font-bold text-ink">Total</span>
+                    <span class="text-2xl font-extrabold text-primary">Rp {{ number_format($order->total,0,',','.') }}</span>
+                </div>
+            </div>
+
+            <div class="mt-4 p-3 rounded-xl {{ $order->payment_status==='lunas' ? 'bg-emerald-50 border border-emerald-200' : 'bg-amber-50 border border-amber-200' }}">
+                <p class="text-sm font-semibold {{ $order->payment_status==='lunas' ? 'text-emerald-700' : 'text-amber-700' }}">
+                    {{ $order->payment_status==='lunas' ? '✅ Sudah Lunas' : '⏳ Belum Lunas' }}
+                </p>
+                @if($order->payment_status==='lunas' && $order->paid_at)
+                <p class="text-xs text-emerald-600 mt-0.5">{{ $order->paid_at->isoFormat('D MMM Y, HH:mm') }} via {{ ucfirst($order->payment_method) }}</p>
+                @endif
+            </div>
+
+            @if($order->payment_status === 'belum_lunas')
+            <form action="{{ route('orders.markPaid', $order) }}" method="POST" class="mt-4">
+                @csrf @method('PATCH')
+                <select name="payment_method" class="form-input mb-3" required>
+                    <option value="">Pilih metode pembayaran</option>
+                    <option value="cash">💵 Cash</option>
+                    <option value="transfer">🏦 Transfer Bank</option>
+                    <option value="qris">📱 QRIS</option>
+                    <option value="wallet">👛 Wallet</option>
+                </select>
+                <button type="submit" class="w-full btn-primary justify-center py-2.5">
+                    <span class="ms ms-fill">payments</span> Tandai Lunas
+                </button>
+            </form>
+            @endif
+        </div>
+
+        <div class="bg-white rounded-2xl p-5 shadow-card border border-surface-border text-sm space-y-2">
+            <p class="text-xs font-bold text-ink-muted uppercase tracking-wider">Info Order</p>
+            <div class="flex justify-between"><span class="text-ink-muted">Dibuat oleh</span><span class="font-medium">{{ $order->created_by ?? '-' }}</span></div>
+            <div class="flex justify-between"><span class="text-ink-muted">Tanggal</span><span class="font-medium">{{ $order->created_at->isoFormat('D MMM Y') }}</span></div>
+        </div>
+    </div>
+</div>
+
+{{-- ── Struk Thermal (hanya tampil saat print) ──────────────── --}}
+<div id="print-receipt" style="display:none;">
+    <div style="width:280px; margin:0 auto; font-family:'Courier New',monospace; font-size:12px; color:#000;">
+        <div style="text-align:center; border-bottom:1px dashed #000; padding-bottom:10px; margin-bottom:10px;">
+            <p style="font-size:16px; font-weight:bold; margin:0;">LinenFlow POS</p>
+            <p style="margin:2px 0; font-size:11px;">Laundry Management System</p>
+            <p style="margin:2px 0; font-size:11px;">================================</p>
+        </div>
+
+        <div style="margin-bottom:10px;">
+            <p style="margin:2px 0;"><b>No. Order :</b> {{ $order->order_number }}</p>
+            <p style="margin:2px 0;"><b>Tanggal   :</b> {{ $order->created_at->format('d/m/Y H:i') }}</p>
+            <p style="margin:2px 0;"><b>Pelanggan :</b> {{ $order->customer_name }}</p>
+            <p style="margin:2px 0;"><b>Telp      :</b> {{ $order->customer_phone }}</p>
+        </div>
+
+        <p style="margin:4px 0;">--------------------------------</p>
+
+        <div style="margin-bottom:6px;">
+            @if($order->service_type)
+            <p style="margin:2px 0;"><b>Layanan:</b> {{ str_replace('_',' ', ucfirst($order->service_type)) }}</p>
+            @endif
+            @if($order->weight)
+            <p style="margin:2px 0;"><b>Berat:</b> {{ $order->weight }} kg</p>
+            @endif
+            @if($order->speed)
+            <p style="margin:2px 0;"><b>Kecepatan:</b> {{ ucfirst($order->speed) }}</p>
+            @endif
+            @if($order->perfume)
+            <p style="margin:2px 0;"><b>Parfum:</b> {{ ucfirst($order->perfume) }}</p>
+            @endif
+        </div>
+
+        <p style="margin:4px 0;">--------------------------------</p>
+
+        <div style="margin-bottom:6px;">
+            <div style="display:flex;justify-content:space-between;">
+                <span>Subtotal</span>
+                <span>Rp {{ number_format($order->subtotal,0,',','.') }}</span>
+            </div>
+            @if($order->speed_surcharge > 0)
+            <div style="display:flex;justify-content:space-between;">
+                <span>Surcharge</span>
+                <span>Rp {{ number_format($order->speed_surcharge,0,',','.') }}</span>
+            </div>
+            @endif
+            @if($order->discount > 0)
+            <div style="display:flex;justify-content:space-between;">
+                <span>Diskon</span>
+                <span>-Rp {{ number_format($order->discount,0,',','.') }}</span>
+            </div>
+            @endif
+        </div>
+
+        <p style="margin:4px 0;">================================</p>
+        <div style="display:flex;justify-content:space-between;font-size:15px;font-weight:bold;">
+            <span>TOTAL</span>
+            <span>Rp {{ number_format($order->total,0,',','.') }}</span>
+        </div>
+        <p style="margin:4px 0;">================================</p>
+
+        <div style="margin:8px 0;">
+            <p style="margin:2px 0;"><b>Pembayaran:</b> {{ $order->payment_status === 'lunas' ? 'LUNAS' : 'BELUM LUNAS' }}</p>
+            @if($order->payment_status === 'lunas' && $order->payment_method)
+            <p style="margin:2px 0;"><b>Metode:</b> {{ strtoupper($order->payment_method) }}</p>
+            @endif
+        </div>
+
+        @if($order->estimated_done)
+        <p style="margin:4px 0;">--------------------------------</p>
+        <p style="margin:2px 0;"><b>Est. Selesai:</b> {{ $order->estimated_done->format('d/m/Y') }}</p>
+        @endif
+
+        <div style="text-align:center; margin-top:14px; border-top:1px dashed #000; padding-top:10px;">
+            <p style="margin:2px 0;">Terima kasih atas kepercayaan Anda!</p>
+            <p style="margin:2px 0; font-size:11px;">Simpan struk ini sebagai bukti pembayaran</p>
+        </div>
+    </div>
+</div>
+@if(session('new_order'))
+{{-- ── Modal Pesanan Baru ─────────────────────────────────────── --}}
+<div id="new-order-modal" style="position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;">
+    {{-- Overlay --}}
+    <div style="position:absolute;inset:0;background:rgba(15,23,42,0.6);backdrop-filter:blur(6px);" onclick="closeNewOrderModal()"></div>
+
+    {{-- Card --}}
+    <div id="modal-card" style="position:relative;background:#fff;border-radius:24px;padding:32px 28px;max-width:360px;width:100%;box-shadow:0 30px 70px rgba(0,0,0,0.3);animation:modalSlideUp .4s cubic-bezier(.34,1.56,.64,1);">
+
+        {{-- Icon & Judul --}}
+        <div style="text-align:center;margin-bottom:24px;">
+            <div style="width:80px;height:80px;background:linear-gradient(135deg,#0d9488,#14b8a6);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;box-shadow:0 10px 30px rgba(13,148,136,.4);">
+                <span class="ms ms-fill" style="font-size:40px;color:#fff;">task_alt</span>
+            </div>
+            <h2 style="font-size:20px;font-weight:800;color:#0f172a;margin:0 0 6px;">Pesanan Berhasil Dibuat!</h2>
+            <p style="font-size:13px;color:#0d9488;margin:0;font-family:monospace;font-weight:700;letter-spacing:.5px;">{{ $order->order_number }}</p>
+            <p style="font-size:12px;color:#94a3b8;margin:5px 0 0;">{{ $order->customer_name }} &nbsp;·&nbsp; Rp {{ number_format($order->total,0,',','.') }}</p>
+        </div>
+
+        {{-- Label --}}
+        <p style="font-size:11px;font-weight:700;color:#94a3b8;text-align:center;text-transform:uppercase;letter-spacing:1.2px;margin:0 0 12px;">Langkah Selanjutnya</p>
+
+        {{-- Tombol Aksi --}}
+        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;">
+
+            {{-- Kirim WhatsApp --}}
+            <a href="https://wa.me/{{ $waPhone }}?text={{ $waMsg }}" target="_blank"
+               onclick="closeNewOrderModal()"
+               style="display:flex;align-items:center;justify-content:center;gap:10px;padding:15px;background:#25D366;color:#fff;border-radius:14px;text-decoration:none;font-size:15px;font-weight:700;transition:transform .15s,box-shadow .15s;box-shadow:0 4px 14px rgba(37,211,102,.35);"
+               onmouseover="this.style.transform='scale(1.02)';this.style.boxShadow='0 6px 20px rgba(37,211,102,.5)'"
+               onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 4px 14px rgba(37,211,102,.35)'">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                </svg>
+                Kirim WhatsApp
+            </a>
+
+            {{-- Print Struk --}}
+            <button onclick="window.print()"
+                    style="display:flex;align-items:center;justify-content:center;gap:10px;padding:15px;background:#0d9488;color:#fff;border-radius:14px;border:none;cursor:pointer;font-size:15px;font-weight:700;font-family:inherit;width:100%;transition:transform .15s,box-shadow .15s;box-shadow:0 4px 14px rgba(13,148,136,.35);"
+                    onmouseover="this.style.transform='scale(1.02)';this.style.boxShadow='0 6px 20px rgba(13,148,136,.5)'"
+                    onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 4px 14px rgba(13,148,136,.35)'">
+                <span class="ms ms-fill" style="font-size:22px;">print</span>
+                Print Struk
+            </button>
+        </div>
+
+        {{-- Tombol Lewati --}}
+        <button onclick="closeNewOrderModal()"
+                style="width:100%;padding:11px;background:transparent;border:1.5px solid #e2e8f0;border-radius:12px;color:#64748b;font-size:14px;cursor:pointer;font-family:inherit;transition:background .15s,border-color .15s;"
+                onmouseover="this.style.background='#f8fafc';this.style.borderColor='#cbd5e1'"
+                onmouseout="this.style.background='transparent';this.style.borderColor='#e2e8f0'">
+            Lewati — Lihat Detail Pesanan
+        </button>
+    </div>
+</div>
+
+<style>
+@keyframes modalSlideUp {
+    from { opacity:0; transform:translateY(40px) scale(0.9); }
+    to   { opacity:1; transform:translateY(0) scale(1); }
+}
+</style>
+<script>
+function closeNewOrderModal() {
+    const modal = document.getElementById('new-order-modal');
+    if (!modal) return;
+    modal.style.transition = 'opacity .25s';
+    modal.style.opacity = '0';
+    setTimeout(() => modal.remove(), 260);
+}
+</script>
+@endif
+
+{{-- Modal Konfirmasi Batalkan --}}
+<div id="cancelModal" class="hidden" style="position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);">
+    <div style="background:#fff;border-radius:20px;box-shadow:0 25px 60px rgba(0,0,0,0.25);max-width:380px;width:100%;padding:28px 24px;text-align:center;animation:modalSlideUp .3s cubic-bezier(.34,1.56,.64,1);">
+        <div style="width:56px;height:56px;border-radius:50%;background:#fee2e2;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+            <span class="ms ms-fill" style="color:#ef4444;font-size:28px;">cancel</span>
+        </div>
+        <h3 style="font-size:18px;font-weight:800;color:#0f172a;margin:0 0 8px;">Batalkan Pesanan?</h3>
+        <p style="font-size:13px;color:#64748b;margin:0 0 24px;line-height:1.6;">
+            Order <span style="font-family:monospace;font-weight:700;color:#0f172a;">{{ $order->order_number }}</span>
+            akan dibatalkan. Tindakan ini tidak bisa diurungkan.
+        </p>
+        <div style="display:flex;gap:10px;">
+            <button onclick="closeCancelModal()"
+                    style="flex:1;padding:11px;background:#f1f5f9;border:none;border-radius:12px;color:#475569;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:background .15s;"
+                    onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
+                Tidak, Kembali
+            </button>
+            <form action="{{ route('orders.updateStatus', $order) }}" method="POST" style="flex:1;">
+                @csrf @method('PATCH')
+                <button type="submit" name="status" value="dibatalkan"
+                        style="width:100%;padding:11px;background:#ef4444;border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:background .15s;"
+                        onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#ef4444'">
+                    Ya, Batalkan
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+{{-- Modal Konfirmasi Kembali Status --}}
+<div id="revertModal" class="hidden" style="position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);">
+    <div style="background:#fff;border-radius:20px;box-shadow:0 25px 60px rgba(0,0,0,0.25);max-width:380px;width:100%;padding:28px 24px;text-align:center;animation:modalSlideUp .3s cubic-bezier(.34,1.56,.64,1);">
+        <div style="width:56px;height:56px;border-radius:50%;background:#fef3c7;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+            <span class="ms ms-fill" style="color:#f59e0b;font-size:28px;">undo</span>
+        </div>
+        <h3 style="font-size:18px;font-weight:800;color:#0f172a;margin:0 0 8px;">Kembalikan Status?</h3>
+        <p style="font-size:13px;color:#64748b;margin:0 0 24px;line-height:1.6;">
+            Status akan dikembalikan ke <span id="revertStatusLabel" style="font-weight:700;color:#0f172a;"></span>.
+        </p>
+        <div style="display:flex;gap:10px;">
+            <button onclick="closeRevertModal()"
+                    style="flex:1;padding:11px;background:#f1f5f9;border:none;border-radius:12px;color:#475569;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:background .15s;"
+                    onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
+                Batal
+            </button>
+            <form id="revertForm" action="{{ route('orders.updateStatus', $order) }}" method="POST" style="flex:1;">
+                @csrf @method('PATCH')
+                <input type="hidden" id="revertStatusInput" name="status" value="">
+                <button type="submit"
+                        style="width:100%;padding:11px;background:#0d9488;border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:background .15s;"
+                        onmouseover="this.style.background='#0f766e'" onmouseout="this.style.background='#0d9488'">
+                    Ya, Kembalikan
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+@endsection
+
+@push('scripts')
+<style>
+    @keyframes modalSlideUp {
+        from { opacity:0; transform:translateY(30px) scale(0.95); }
+        to   { opacity:1; transform:translateY(0) scale(1); }
+    }
+    @media print {
+        /* Sembunyikan semua elemen kecuali struk */
+        body * { visibility: hidden !important; }
+        #print-receipt, #print-receipt * { visibility: visible !important; }
+        #print-receipt {
+            display: block !important;
+            position: fixed !important;
+            top: 0 !important; left: 0 !important;
+            width: 100% !important;
+        }
+        #mobile-header, #mobile-bottom-nav,
+        #sidebar, .desktop-header { display: none !important; }
+    }
+</style>
+<script>
+function openCancelModal() {
+    const m = document.getElementById('cancelModal');
+    m.style.display = 'flex';
+    m.classList.remove('hidden');
+}
+function closeCancelModal() {
+    const m = document.getElementById('cancelModal');
+    m.style.display = 'none';
+    m.classList.add('hidden');
+}
+function openRevertModal(status, label) {
+    document.getElementById('revertStatusLabel').textContent = '"' + label + '"';
+    document.getElementById('revertStatusInput').value = status;
+    const m = document.getElementById('revertModal');
+    m.style.display = 'flex';
+    m.classList.remove('hidden');
+}
+function closeRevertModal() {
+    const m = document.getElementById('revertModal');
+    m.style.display = 'none';
+    m.classList.add('hidden');
+}
+</script>
+@endpush
