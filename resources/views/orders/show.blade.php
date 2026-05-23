@@ -737,7 +737,11 @@ async function connectBluetoothPrinter() {
     } catch (error) {
         console.error("Bluetooth error:", error);
         onDisconnected();
-        alert("Gagal koneksi printer: " + error.message);
+        if (error.name === 'NotFoundError' || error.message.includes('cancelled') || error.message.includes('user cancelled') || error.message.includes('User cancelled')) {
+            alert("Pencarian printer dibatalkan atau printer tidak terdeteksi.\n\nTips:\n1. Pastikan Bluetooth perangkat Anda menyala.\n2. Jika printer menggunakan Bluetooth Classic, hubungkan langsung via Pengaturan Bluetooth Mac/Windows, lalu klik tombol hijau 'Print Struk'.");
+        } else {
+            alert("Gagal koneksi printer: " + error.message);
+        }
         return false;
     }
 }
