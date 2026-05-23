@@ -50,8 +50,8 @@ echo "DB_DATABASE=pos_jm" >> .env
 echo "DB_USERNAME=pos_jm_user" >> .env
 echo "DB_PASSWORD=PasswordLinen123!" >> .env
 
-# Atur APP_URL ke subdomain laundry
-sed -i 's|APP_URL=.*|APP_URL=https://laundry.galipatsistem.com|' .env
+# Atur APP_URL ke subdomain jm
+sed -i 's|APP_URL=.*|APP_URL=https://jm.galipatsistem.com|' .env
 sed -i 's|APP_ENV=.*|APP_ENV=production|' .env
 sed -i 's|APP_DEBUG=.*|APP_DEBUG=false|' .env
 
@@ -86,7 +86,7 @@ echo "=> 6. Konfigurasi Nginx Web Server..."
 cat <<EOF > /etc/nginx/sites-available/pos-jm
 server {
     listen 80;
-    server_name laundry.galipatsistem.com;
+    server_name jm.galipatsistem.com;
     root /var/www/pos-jm/public;
 
     add_header X-Frame-Options "SAMEORIGIN";
@@ -125,5 +125,5 @@ systemctl restart nginx
 echo "================================================="
 echo " Instalasi LinenFlow POS Selesai!"
 echo " Silakan buka browser Anda di alamat:"
-echo " https://laundry.galipatsistem.com"
+echo " https://jm.galipatsistem.com"
 echo "================================================="
