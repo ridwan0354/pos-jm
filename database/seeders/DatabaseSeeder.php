@@ -12,6 +12,8 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        $this->call(AdminUserSeeder::class);
+
         // ── Services ──────────────────────────────────────────────────────────
         $services = [
             ['name' => 'Cuci + Setrika',  'category' => 'kiloan', 'unit' => 'kg',  'price' => 7000,  'sort_order' => 1],
