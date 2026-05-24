@@ -21,17 +21,17 @@
         $waPhone = preg_replace('/[^0-9]/', '', $order->customer_phone);
         if (str_starts_with($waPhone, '0')) $waPhone = '62' . substr($waPhone, 1);
         $portalUrl = url('/portal');
-        $waMsg = urlencode(
-            "Halo {$order->customer_name}, pesanan laundry Anda sudah masuk! 🧺\n\n" .
-            "📋 No. Order : {$order->order_number}\n" .
-            "👕 Layanan   : {$order->service_type} ({$order->weight} kg)\n" .
-            "💰 Total     : Rp " . number_format($order->total,0,',','.') . "\n" .
-            "📌 Status    : {$order->status_label}\n\n" .
-            "🔍 *Pantau status cucian Anda secara real-time di:*\n" .
+        $waMsg = rawurlencode(
+            "Halo {$order->customer_name}, pesanan laundry Anda sudah masuk!\n\n" .
+            "No. Order : {$order->order_number}\n" .
+            "Layanan   : {$order->service_type} ({$order->weight} kg)\n" .
+            "Total     : Rp " . number_format($order->total,0,',','.') . "\n" .
+            "Status    : {$order->status_label}\n\n" .
+            "*Pantau status cucian Anda secara real-time di:*\n" .
             "{$portalUrl}\n\n" .
-            "🔑 Login menggunakan nomor HP terdaftar:\n" .
+            "Login menggunakan nomor HP terdaftar:\n" .
             "*{$order->customer_phone}*\n\n" .
-            "Terima kasih sudah mempercayakan cucian Anda kepada kami! 👍"
+            "Terima kasih sudah mempercayakan cucian Anda kepada kami!"
         );
     @endphp
     <a href="https://wa.me/{{ $waPhone }}?text={{ $waMsg }}" target="_blank"
