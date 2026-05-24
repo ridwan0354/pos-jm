@@ -745,6 +745,86 @@ let printerCharacteristic = null;
 let printerDevice = null;
 const PRINTER_SERVICE_UUID = '000018f0-0000-1000-8000-00805f9b34fb';
 
+function bytesToBase64(byteArray) {
+    let binary = '';
+    const len = byteArray.length;
+    for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(byteArray[i]);
+    }
+    return window.btoa(binary);
+}
+
+function showAndroidDeviceSelector(devices) {
+    const existing = document.getElementById('androidDeviceSelectorModal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'androidDeviceSelectorModal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.6);display:flex;align-items:center;justify-content:center;z-index:9999;backdrop-filter:blur(4px);padding:20px;';
+
+    let listHtml = '';
+    devices.forEach((d) => {
+        listHtml += `
+            <div onclick="selectAndroidDevice('${d.address}', '${escapeJs(d.name)}')" style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:10px;border:1px solid #e2e8f0;cursor:pointer;margin-bottom:8px;transition:all 0.2s;text-align:left;background:#fff;">
+                <span style="font-size:20px;">🖨️</span>
+                <div style="flex-grow:1;">
+                    <div style="font-weight:700;font-size:14px;color:#0f172a;">${d.name || 'Printer Bluetooth'}</div>
+                    <div style="font-size:12px;color:#64748b;">${d.address}</div>
+                </div>
+                <span style="color:#2563eb;font-weight:600;font-size:13px;">Pilih ›</span>
+            </div>
+        `;
+    });
+
+    modal.innerHTML = `
+        <div style="background:#fff;border-radius:16px;width:100%;max-width:360px;padding:24px;box-shadow:0 20px 25px -5px rgba(0,0,0,0.1);text-align:center;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                <h3 style="font-size:16px;font-weight:800;color:#0f172a;margin:0;">Pilih Printer Bluetooth</h3>
+                <button onclick="document.getElementById('androidDeviceSelectorModal').remove()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#64748b;margin-left:auto;padding:4px;">✕</button>
+            </div>
+            <p style="font-size:12px;color:#64748b;margin-bottom:16px;text-align:left;">Pilih printer yang sudah dipasangkan (paired) di perangkat Android Anda.</p>
+            <div style="max-height:240px;overflow-y:auto;">
+                ${listHtml}
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+}
+
+function escapeJs(str) {
+    if (!str) return '';
+    return str.replace(/'/g, "\\'").replace(/"/g, '\\"');
+}
+
+function selectAndroidDevice(address, name) {
+    const modal = document.getElementById('androidDeviceSelectorModal');
+    if (modal) modal.remove();
+
+    updateBluetoothStatus('connecting', 'Koneksi...');
+    
+    setTimeout(() => {
+        try {
+            const ok = AndroidPrint.connectDevice(address);
+            if (ok) {
+                updateBluetoothStatus('connected', name);
+                
+                // Save settings
+                const settings = { deviceName: name, deviceAddress: address };
+                localStorage.setItem('jm_printer_settings', JSON.stringify(settings));
+                
+                // Trigger printing automatically after connection is established
+                printBluetooth();
+            } else {
+                throw new Error('Koneksi gagal. Pastikan printer aktif.');
+            }
+        } catch(err) {
+            updateBluetoothStatus('disconnected', 'Printer Off');
+            alert('Gagal terhubung ke printer: ' + err.message);
+        }
+    }, 100);
+}
+
 function updateBluetoothStatus(status, text) {
     const badge = document.getElementById('bt-status-badge');
     const label = document.getElementById('bt-status-label');
@@ -792,7 +872,7 @@ async function connectBluetoothPrinter() {
         updateBluetoothStatus('connecting', 'Mencari...');
         
         let device = null;
-        // 1. Cek apakah ada printer yang sudah diizinkan sebelumnya (fitur konek sekali)
+        // 1. Cek apakah ada printer yang sudah diizinkan sebelumnya
         if (navigator.bluetooth && navigator.bluetooth.getDevices) {
             const devices = await navigator.bluetooth.getDevices();
             if (devices.length > 0) {
@@ -839,7 +919,7 @@ async function connectBluetoothPrinter() {
         console.error("Bluetooth error:", error);
         onDisconnected();
         if (error.name === 'NotFoundError' || error.message.includes('cancelled') || error.message.includes('user cancelled') || error.message.includes('User cancelled')) {
-            alert("Pencarian printer dibatalkan atau printer tidak terdeteksi.\n\nTips:\n1. Pastikan Bluetooth perangkat Anda menyala.\n2. Jika printer menggunakan Bluetooth Classic, hubungkan langsung via Pengaturan Bluetooth Mac/Windows, lalu klik tombol hijau 'Print Struk'.");
+            alert("Pencarian printer dibatalkan atau printer tidak terdeteksi.\n\nTips:\n1. Pastikan Bluetooth perangkat Anda menyala.\n2. Hubungkan langsung via Pengaturan Bluetooth, lalu coba lagi.");
         } else {
             alert("Gagal koneksi printer: " + error.message);
         }
@@ -848,6 +928,26 @@ async function connectBluetoothPrinter() {
 }
 
 async function toggleBluetoothPrinter() {
+    if (typeof AndroidPrint !== 'undefined') {
+        if (AndroidPrint.isConnected()) {
+            AndroidPrint.disconnectDevice();
+            onDisconnected();
+        } else {
+            try {
+                const devicesJson = AndroidPrint.getPairedDevices();
+                const devices = JSON.parse(devicesJson);
+                if (devices.length === 0) {
+                    alert('Tidak ada printer Bluetooth terpasang (paired) di HP/Tablet Anda. Silakan pasangkan via Pengaturan Bluetooth terlebih dahulu.');
+                    return;
+                }
+                showAndroidDeviceSelector(devices);
+            } catch (e) {
+                alert('Gagal memindai printer Android: ' + e.message);
+            }
+        }
+        return;
+    }
+
     if (printerDevice && printerDevice.gatt.connected) {
         printerDevice.gatt.disconnect();
         onDisconnected();
@@ -857,18 +957,61 @@ async function toggleBluetoothPrinter() {
 }
 
 async function printBluetooth() {
-    if (!navigator.bluetooth) {
-        alert("Web Bluetooth API tidak didukung di browser ini. Gunakan Google Chrome atau browser berbasis Chromium.");
+    if (typeof AndroidPrint === 'undefined' && !navigator.bluetooth) {
+        alert("Web Bluetooth API tidak didukung di browser ini. Gunakan Google Chrome atau jalankan aplikasi dari HP.");
         return;
     }
 
-    if (!printerCharacteristic) {
-        const connected = await connectBluetoothPrinter();
-        if (!connected) return;
+    if (typeof AndroidPrint !== 'undefined') {
+        if (!AndroidPrint.isConnected()) {
+            const saved = JSON.parse(localStorage.getItem('jm_printer_settings') || '{}');
+            if (saved.deviceAddress) {
+                updateBluetoothStatus('connecting', 'Koneksi...');
+                const ok = AndroidPrint.connectDevice(saved.deviceAddress);
+                if (ok) {
+                    updateBluetoothStatus('connected', saved.deviceName);
+                } else {
+                    updateBluetoothStatus('disconnected', 'Printer Off');
+                    try {
+                        const devicesJson = AndroidPrint.getPairedDevices();
+                        const devices = JSON.parse(devicesJson);
+                        if (devices.length === 0) {
+                            alert('Gagal menghubungkan ke printer tersimpan. Tidak ada printer terpasang di HP.');
+                            return;
+                        }
+                        showAndroidDeviceSelector(devices);
+                        return;
+                    } catch (e) {
+                        alert('Gagal memindai printer: ' + e.message);
+                        return;
+                    }
+                }
+            } else {
+                try {
+                    const devicesJson = AndroidPrint.getPairedDevices();
+                    const devices = JSON.parse(devicesJson);
+                    if (devices.length === 0) {
+                        alert('Tidak ada printer Bluetooth terpasang (paired) di HP/Tablet Anda. Silakan pasangkan via Pengaturan Bluetooth terlebih dahulu.');
+                        return;
+                    }
+                    showAndroidDeviceSelector(devices);
+                    return;
+                } catch (e) {
+                    alert('Gagal memindai printer: ' + e.message);
+                    return;
+                }
+            }
+        }
+    } else {
+        if (!printerCharacteristic) {
+            const connected = await connectBluetoothPrinter();
+            if (!connected) return;
+        }
     }
 
     try {
         const orderData = JSON.parse(document.getElementById('order-data').textContent);
+        const formatNumber = (num) => new Intl.NumberFormat('id-ID').format(num);
         const encoder = new EscPosEncoder();
         
         encoder.initialize();
@@ -902,8 +1045,6 @@ async function printBluetooth() {
         }
         encoder.line("--------------------------------");
 
-        const formatNumber = (num) => new Intl.NumberFormat('id-ID').format(num);
-        
         // Biaya
         encoder.line(formatRow("Subtotal", `Rp ${formatNumber(orderData.subtotal)}`));
         if (orderData.speed_surcharge > 0) {
@@ -941,7 +1082,14 @@ async function printBluetooth() {
         
         const bytes = encoder.getBytes();
         
-        // Kirim dalam potongan 20 bytes
+        if (typeof AndroidPrint !== 'undefined') {
+            const base64Str = bytesToBase64(bytes);
+            const ok = AndroidPrint.printBase64(base64Str);
+            if (!ok) throw new Error("Gagal mencetak dari aplikasi.");
+            return;
+        }
+        
+        // Kirim dalam potongan 20 bytes (Untuk Web Bluetooth)
         const chunkSize = 20;
         for (let i = 0; i < bytes.length; i += chunkSize) {
             const chunk = bytes.slice(i, i + chunkSize);
@@ -957,6 +1105,26 @@ async function printBluetooth() {
 
 // Cek otomatis printer terpasang di background saat load
 window.addEventListener('DOMContentLoaded', async () => {
+    if (typeof AndroidPrint !== 'undefined') {
+        if (AndroidPrint.isConnected()) {
+            updateBluetoothStatus('connected', AndroidPrint.getConnectedDeviceName());
+        } else {
+            // Auto connect if we have saved printer info
+            const saved = JSON.parse(localStorage.getItem('jm_printer_settings') || '{}');
+            if (saved.deviceAddress) {
+                const ok = AndroidPrint.connectDevice(saved.deviceAddress);
+                if (ok) {
+                    updateBluetoothStatus('connected', saved.deviceName);
+                } else {
+                    updateBluetoothStatus('disconnected', 'Printer Off');
+                }
+            } else {
+                updateBluetoothStatus('disconnected', 'Printer Off');
+            }
+        }
+        return;
+    }
+
     if (navigator.bluetooth && navigator.bluetooth.getDevices) {
         try {
             const devices = await navigator.bluetooth.getDevices();
