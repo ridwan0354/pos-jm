@@ -40,15 +40,20 @@
         WhatsApp
     </a>
 
-    {{-- Print Button --}}
-    <button onclick="window.print()" id="btn-print"
+    {{-- Print Buttons --}}
+    <button onclick="printCustomerReceipt()" id="btn-print"
             style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:#0d9488;color:#fff;border-radius:10px;border:none;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit;">
         <span class="ms ms-fill" style="font-size:18px;">print</span>
-        Cetak Struk
+        Struk Pelanggan
+    </button>
+    <button onclick="printProductionReceipt()" id="btn-print-prod"
+            style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:#4f46e5;color:#fff;border-radius:10px;border:none;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit;">
+        <span class="ms ms-fill" style="font-size:18px;">receipt_long</span>
+        Nota Produksi
     </button>
 
     {{-- Bluetooth Printer Controls --}}
-    <div style="display:inline-flex;align-items:center;gap:8px;border:1px solid #e2e8f0;background:#fff;border-radius:10px;padding:4px 8px;box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+    <div style="display:inline-flex;align-items:center;gap:6px;border:1px solid #e2e8f0;background:#fff;border-radius:10px;padding:4px 6px;box-shadow:0 1px 2px rgba(0,0,0,0.05);flex-wrap:wrap;">
         <button onclick="toggleBluetoothPrinter()" id="btn-connect-bt"
                 type="button"
                 style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;background:#f1f5f9;color:#475569;border-radius:8px;border:none;cursor:pointer;"
@@ -58,11 +63,17 @@
         <span id="bt-status-badge" class="badge bg-slate-50 text-slate-500 border border-slate-200" style="font-size:10px;padding:2px 6px;">
             <span id="bt-status-label">Printer Off</span>
         </span>
-        <button onclick="printBluetooth()" id="btn-print-bt"
+        <button onclick="printBluetooth('customer')" id="btn-print-bt"
                 type="button"
                 style="display:inline-flex;align-items:center;gap:4px;padding:6px 12px;background:#2563eb;color:#fff;border-radius:8px;border:none;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit;">
             <span class="ms ms-fill" style="font-size:15px;">print</span>
-            Cetak Bluetooth
+            BT Pelanggan
+        </button>
+        <button onclick="printBluetooth('production')" id="btn-print-bt-prod"
+                type="button"
+                style="display:inline-flex;align-items:center;gap:4px;padding:6px 12px;background:#4f46e5;color:#fff;border-radius:8px;border:none;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit;">
+            <span class="ms ms-fill" style="font-size:15px;">receipt_long</span>
+            BT Produksi
         </button>
     </div>
 </div>
@@ -445,6 +456,76 @@
         </div>
     </div>
 </div>
+
+{{-- ── Struk Produksi (hanya tampil saat print) ──────────────── --}}
+<div id="print-production" style="display:none;">
+    <div style="width:280px; margin:0 auto; font-family:'Courier New',monospace; font-size:12px; color:#000;">
+        <div style="text-align:center; border-bottom:1px dashed #000; padding-bottom:10px; margin-bottom:10px;">
+            <p style="font-size:16px; font-weight:bold; margin:0;">NOTA PRODUKSI</p>
+            <p style="margin:2px 0; font-size:11px;">LinenFlow POS</p>
+            <p style="margin:2px 0; font-size:11px;">================================</p>
+        </div>
+
+        <div style="margin-bottom:10px;">
+            <p style="margin:2px 0;"><b>No. Order :</b> {{ $order->order_number }}</p>
+            <p style="margin:2px 0;"><b>Tanggal   :</b> {{ $order->created_at->format('d/m/Y H:i') }}</p>
+            <p style="margin:2px 0;"><b>Pelanggan :</b> {{ $order->customer_name }}</p>
+            <p style="margin:2px 0;"><b>Telp      :</b> {{ $order->customer_phone }}</p>
+        </div>
+
+        <p style="margin:4px 0;">--------------------------------</p>
+
+        <div style="margin-bottom:6px;">
+            @if($order->items->count() > 0)
+                @foreach($order->items as $item)
+                <div style="display:flex;justify-content:space-between;margin:4px 0;font-size:13px;font-weight:bold;">
+                    <span>{{ $item->name }}</span>
+                    <span>{{ $item->qty }} {{ $item->unit }}</span>
+                </div>
+                @endforeach
+            @else
+                @if($order->service_type)
+                <p style="margin:2px 0;"><b>Layanan:</b> {{ str_replace('_',' ', ucfirst($order->service_type)) }}</p>
+                @endif
+                @if($order->weight)
+                <p style="margin:2px 0;font-size:13px;font-weight:bold;"><b>Berat:</b> {{ $order->weight }} kg</p>
+                @endif
+            @endif
+        </div>
+
+        <p style="margin:4px 0;">--------------------------------</p>
+
+        <div style="margin-bottom:6px; font-size:13px;">
+            @if($order->speed)
+            <p style="margin:4px 0;"><b>Kecepatan:</b> <span style="background:#000;color:#fff;padding:2px 6px;font-weight:bold;text-transform:uppercase;">{{ $order->speed }}</span></p>
+            @endif
+            @if($order->perfume)
+            <p style="margin:4px 0;"><b>Parfum:</b> <span style="font-weight:bold;text-transform:uppercase;">{{ $order->perfume }}</span></p>
+            @endif
+            @if($order->ironingStaff)
+            <p style="margin:4px 0;"><b>PJ Setrika:</b> {{ $order->ironingStaff->name }}</p>
+            @endif
+        </div>
+
+        @if($order->notes)
+        <p style="margin:4px 0;">--------------------------------</p>
+        <div style="margin:6px 0; padding:6px; border:1px solid #000; font-size:13px;">
+            <p style="margin:0 0 4px; font-weight:bold;">CATATAN:</p>
+            <p style="margin:0; font-weight:bold; line-height:1.4;">{{ $order->notes }}</p>
+        </div>
+        @endif
+
+        <p style="margin:4px 0;">================================</p>
+
+        @if($order->estimated_done)
+        <p style="margin:2px 0; font-size:13px; font-weight:bold;"><b>Est. Selesai:</b> {{ $order->estimated_done->format('d/m/Y') }}</p>
+        @endif
+
+        <div style="text-align:center; margin-top:20px; border-top:1px dashed #000; padding-top:10px;">
+            <p style="margin:2px 0; font-size:10px;">LinenFlow Laundry System</p>
+        </div>
+    </div>
+</div>
 @if(session('new_order'))
 {{-- ── Modal Pesanan Baru ─────────────────────────────────────── --}}
 <div id="new-order-modal" style="position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;">
@@ -482,23 +563,41 @@
                 Kirim WhatsApp
             </a>
 
-            {{-- Print Struk --}}
-            <button onclick="window.print()"
-                    style="display:flex;align-items:center;justify-content:center;gap:10px;padding:15px;background:#0d9488;color:#fff;border-radius:14px;border:none;cursor:pointer;font-size:15px;font-weight:700;font-family:inherit;width:100%;transition:transform .15s,box-shadow .15s;box-shadow:0 4px 14px rgba(13,148,136,.35);"
-                    onmouseover="this.style.transform='scale(1.02)';this.style.boxShadow='0 6px 20px rgba(13,148,136,.5)'"
-                    onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 4px 14px rgba(13,148,136,.35)'">
-                <span class="ms ms-fill" style="font-size:22px;">print</span>
-                Print Struk
-            </button>
+            {{-- Row 1: System Print --}}
+            <div style="display:flex;gap:8px;">
+                <button onclick="printCustomerReceipt()"
+                        style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:12px 8px;background:#0d9488;color:#fff;border-radius:14px;border:none;cursor:pointer;font-size:13px;font-weight:700;font-family:inherit;transition:transform .15s,box-shadow .15s;box-shadow:0 4px 12px rgba(13,148,136,.25);"
+                        onmouseover="this.style.transform='scale(1.02)';this.style.boxShadow='0 6px 16px rgba(13,148,136,.4)'"
+                        onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 4px 12px rgba(13,148,136,.25)'">
+                    <span class="ms ms-fill" style="font-size:18px;">print</span>
+                    Struk Pelanggan
+                </button>
+                <button onclick="printProductionReceipt()"
+                        style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:12px 8px;background:#4f46e5;color:#fff;border-radius:14px;border:none;cursor:pointer;font-size:13px;font-weight:700;font-family:inherit;transition:transform .15s,box-shadow .15s;box-shadow:0 4px 12px rgba(79,70,229,.25);"
+                        onmouseover="this.style.transform='scale(1.02)';this.style.boxShadow='0 6px 16px rgba(79,70,229,.4)'"
+                        onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 4px 12px rgba(79,70,229,.25)'">
+                    <span class="ms ms-fill" style="font-size:18px;">receipt_long</span>
+                    Nota Produksi
+                </button>
+            </div>
 
-            {{-- Print Bluetooth --}}
-            <button onclick="printBluetooth()"
-                    style="display:flex;align-items:center;justify-content:center;gap:10px;padding:15px;background:#2563eb;color:#fff;border-radius:14px;border:none;cursor:pointer;font-size:15px;font-weight:700;font-family:inherit;width:100%;transition:transform .15s,box-shadow .15s;box-shadow:0 4px 14px rgba(37,99,235,.35);"
-                    onmouseover="this.style.transform='scale(1.02)';this.style.boxShadow='0 6px 20px rgba(37,99,235,.5)'"
-                    onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 4px 14px rgba(37,99,235,.35)'">
-                <span class="ms ms-fill" style="font-size:22px;">bluetooth</span>
-                Cetak Bluetooth
-            </button>
+            {{-- Row 2: Bluetooth Print --}}
+            <div style="display:flex;gap:8px;">
+                <button onclick="printBluetooth('customer')"
+                        style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:12px 8px;background:#2563eb;color:#fff;border-radius:14px;border:none;cursor:pointer;font-size:13px;font-weight:700;font-family:inherit;transition:transform .15s,box-shadow .15s;box-shadow:0 4px 12px rgba(37,99,235,.25);"
+                        onmouseover="this.style.transform='scale(1.02)';this.style.boxShadow='0 6px 16px rgba(37,99,235,.4)'"
+                        onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 4px 12px rgba(37,99,235,.25)'">
+                    <span class="ms ms-fill" style="font-size:18px;">bluetooth</span>
+                    BT Pelanggan
+                </button>
+                <button onclick="printBluetooth('production')"
+                        style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:12px 8px;background:#4f46e5;color:#fff;border-radius:14px;border:none;cursor:pointer;font-size:13px;font-weight:700;font-family:inherit;transition:transform .15s,box-shadow .15s;box-shadow:0 4px 12px rgba(79,70,229,.25);"
+                        onmouseover="this.style.transform='scale(1.02)';this.style.boxShadow='0 6px 16px rgba(79,70,229,.4)'"
+                        onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 4px 12px rgba(79,70,229,.25)'">
+                    <span class="ms ms-fill" style="font-size:18px;">receipt_long</span>
+                    BT Produksi
+                </button>
+            </div>
         </div>
 
         {{-- Tombol Lewati --}}
@@ -603,13 +702,31 @@ function closeNewOrderModal() {
         }
         /* Sembunyikan semua elemen kecuali struk */
         body * { visibility: hidden !important; }
-        #print-receipt, #print-receipt * { visibility: visible !important; }
-        #print-receipt {
+        
+        /* Mode Struk Pelanggan (Default) */
+        body:not(.print-production-mode) #print-receipt, 
+        body:not(.print-production-mode) #print-receipt * { 
+            visibility: visible !important; 
+        }
+        body:not(.print-production-mode) #print-receipt {
             display: block !important;
             position: fixed !important;
             top: 0 !important; left: 0 !important;
             width: 100% !important;
         }
+
+        /* Mode Nota Produksi */
+        body.print-production-mode #print-production, 
+        body.print-production-mode #print-production * { 
+            visibility: visible !important; 
+        }
+        body.print-production-mode #print-production {
+            display: block !important;
+            position: fixed !important;
+            top: 0 !important; left: 0 !important;
+            width: 100% !important;
+        }
+        
         #mobile-header, #mobile-bottom-nav,
         #sidebar, .desktop-header { display: none !important; }
     }
@@ -631,6 +748,8 @@ function closeNewOrderModal() {
     "payment_status": "{{ $order->payment_status }}",
     "payment_method": "{{ $order->payment_method ?? '' }}",
     "estimated_done": "{{ $order->estimated_done ? $order->estimated_done->format('d/m/Y') : '' }}",
+    "notes": {!! json_encode($order->notes) !!},
+    "ironing_staff": {!! json_encode($order->ironingStaff ? $order->ironingStaff->name : '') !!},
     "items": [
         @foreach($order->items as $item)
         {
@@ -645,6 +764,18 @@ function closeNewOrderModal() {
 }
 </script>
 <script>
+let lastPrintType = 'customer';
+
+function printCustomerReceipt() {
+    document.body.classList.remove('print-production-mode');
+    window.print();
+}
+
+function printProductionReceipt() {
+    document.body.classList.add('print-production-mode');
+    window.print();
+}
+
 function openCancelModal() {
     const m = document.getElementById('cancelModal');
     m.style.display = 'flex';
@@ -956,7 +1087,13 @@ async function toggleBluetoothPrinter() {
     }
 }
 
-async function printBluetooth() {
+async function printBluetooth(type) {
+    if (type) {
+        lastPrintType = type;
+    } else {
+        type = lastPrintType;
+    }
+
     if (typeof AndroidPrint === 'undefined' && !navigator.bluetooth) {
         alert("Web Bluetooth API tidak didukung di browser ini. Gunakan Google Chrome atau jalankan aplikasi dari HP.");
         return;
@@ -1016,69 +1153,121 @@ async function printBluetooth() {
         
         encoder.initialize();
         
-        // Header
-        encoder.alignCenter().bold(true).size(1, 1).line("LinenFlow").size(0, 0).bold(false);
-        encoder.line("Laundry Management System");
-        encoder.line("================================");
+        if (type === 'production') {
+            // Header
+            encoder.alignCenter().bold(true).size(1, 1).line("NOTA PRODUKSI").size(0, 0).bold(false);
+            encoder.line("LinenFlow");
+            encoder.line("================================");
 
-        // Metadata
-        encoder.alignLeft();
-        encoder.line(`No. Order : ${orderData.order_number}`);
-        encoder.line(`Tanggal   : ${orderData.created_at}`);
-        encoder.line(`Pelanggan : ${orderData.customer_name}`);
-        encoder.line(`Telp      : ${orderData.customer_phone}`);
-        encoder.line("--------------------------------");
-
-        // Items/Layanan
-        if (orderData.items && orderData.items.length > 0) {
-            orderData.items.forEach(item => {
-                const qtyStr = `${item.qty} ${item.unit}`;
-                encoder.line(formatRow(`${item.name} (${qtyStr})`, `Rp ${formatNumber(item.subtotal)}`));
-            });
-            if (orderData.speed && orderData.speed !== 'Reguler') encoder.line(`Kecepatan: ${orderData.speed}`);
-            if (orderData.perfume) encoder.line(`Parfum: ${orderData.perfume}`);
-        } else {
-            if (orderData.service_type) encoder.line(`Layanan: ${orderData.service_type}`);
-            if (orderData.weight) encoder.line(`Berat: ${orderData.weight} kg`);
-            if (orderData.speed) encoder.line(`Kecepatan: ${orderData.speed}`);
-            if (orderData.perfume) encoder.line(`Parfum: ${orderData.perfume}`);
-        }
-        encoder.line("--------------------------------");
-
-        // Biaya
-        encoder.line(formatRow("Subtotal", `Rp ${formatNumber(orderData.subtotal)}`));
-        if (orderData.speed_surcharge > 0) {
-            encoder.line(formatRow("Surcharge", `Rp ${formatNumber(orderData.speed_surcharge)}`));
-        }
-        if (orderData.discount > 0) {
-            encoder.line(formatRow("Diskon", `-Rp ${formatNumber(orderData.discount)}`));
-        }
-        encoder.line("================================");
-
-        // Total
-        encoder.bold(true);
-        encoder.line(formatRow("TOTAL", `Rp ${formatNumber(orderData.total)}`));
-        encoder.bold(false);
-        encoder.line("================================");
-
-        // Status Bayar
-        encoder.line(`Pembayaran: ${orderData.payment_status === 'lunas' ? 'LUNAS' : 'BELUM LUNAS'}`);
-        if (orderData.payment_status === 'lunas' && orderData.payment_method) {
-            encoder.line(`Metode    : ${orderData.payment_method.toUpperCase()}`);
-        }
-
-        if (orderData.estimated_done) {
+            // Metadata
+            encoder.alignLeft();
+            encoder.line(`No. Order : ${orderData.order_number}`);
+            encoder.line(`Tanggal   : ${orderData.created_at}`);
+            encoder.line(`Pelanggan : ${orderData.customer_name}`);
+            encoder.line(`Telp      : ${orderData.customer_phone}`);
             encoder.line("--------------------------------");
-            encoder.line(`Est. Selesai: ${orderData.estimated_done}`);
-        }
 
-        encoder.feed(1);
-        encoder.alignCenter();
-        encoder.line("Terima kasih atas");
-        encoder.line("kepercayaan Anda!");
-        encoder.line("Simpan struk ini sebagai");
-        encoder.line("bukti pembayaran");
-        encoder.feed(4); // spasi potong kertas
+            // Items/Layanan
+            if (orderData.items && orderData.items.length > 0) {
+                orderData.items.forEach(item => {
+                    const qtyStr = `${item.qty} ${item.unit}`;
+                    encoder.bold(true).line(formatRow(`${item.name}`, qtyStr)).bold(false);
+                });
+            } else {
+                if (orderData.service_type) encoder.line(`Layanan: ${orderData.service_type}`);
+                if (orderData.weight) encoder.bold(true).line(`Berat: ${orderData.weight} kg`).bold(false);
+            }
+            encoder.line("--------------------------------");
+
+            // Kecepatan & Parfum (Emphasized/Bold)
+            if (orderData.speed) {
+                encoder.bold(true).line(`KECEPATAN: ${orderData.speed.toUpperCase()}`).bold(false);
+            }
+            if (orderData.perfume) {
+                encoder.bold(true).line(`PARFUM   : ${orderData.perfume.toUpperCase()}`).bold(false);
+            }
+            if (orderData.ironing_staff) {
+                encoder.line(`PJ Setrika: ${orderData.ironing_staff}`);
+            }
+
+            if (orderData.notes) {
+                encoder.line("--------------------------------");
+                encoder.bold(true).line("CATATAN:").bold(false);
+                encoder.bold(true).line(orderData.notes).bold(false);
+            }
+            
+            if (orderData.estimated_done) {
+                encoder.line("--------------------------------");
+                encoder.line(`Est. Selesai: ${orderData.estimated_done}`);
+            }
+
+            encoder.line("================================");
+            encoder.feed(4); // spasi potong kertas
+        } else {
+            // Header
+            encoder.alignCenter().bold(true).size(1, 1).line("LinenFlow").size(0, 0).bold(false);
+            encoder.line("Laundry Management System");
+            encoder.line("================================");
+
+            // Metadata
+            encoder.alignLeft();
+            encoder.line(`No. Order : ${orderData.order_number}`);
+            encoder.line(`Tanggal   : ${orderData.created_at}`);
+            encoder.line(`Pelanggan : ${orderData.customer_name}`);
+            encoder.line(`Telp      : ${orderData.customer_phone}`);
+            encoder.line("--------------------------------");
+
+            // Items/Layanan
+            if (orderData.items && orderData.items.length > 0) {
+                orderData.items.forEach(item => {
+                    const qtyStr = `${item.qty} ${item.unit}`;
+                    encoder.line(formatRow(`${item.name} (${qtyStr})`, `Rp ${formatNumber(item.subtotal)}`));
+                });
+                if (orderData.speed && orderData.speed !== 'Reguler') encoder.line(`Kecepatan: ${orderData.speed}`);
+                if (orderData.perfume) encoder.line(`Parfum: ${orderData.perfume}`);
+            } else {
+                if (orderData.service_type) encoder.line(`Layanan: ${orderData.service_type}`);
+                if (orderData.weight) encoder.line(`Berat: ${orderData.weight} kg`);
+                if (orderData.speed) encoder.line(`Kecepatan: ${orderData.speed}`);
+                if (orderData.perfume) encoder.line(`Parfum: ${orderData.perfume}`);
+            }
+            encoder.line("--------------------------------");
+
+            // Biaya
+            encoder.line(formatRow("Subtotal", `Rp ${formatNumber(orderData.subtotal)}`));
+            if (orderData.speed_surcharge > 0) {
+                encoder.line(formatRow("Surcharge", `Rp ${formatNumber(orderData.speed_surcharge)}`));
+            }
+            if (orderData.discount > 0) {
+                encoder.line(formatRow("Diskon", `-Rp ${formatNumber(orderData.discount)}`));
+            }
+            encoder.line("================================");
+
+            // Total
+            encoder.bold(true);
+            encoder.line(formatRow("TOTAL", `Rp ${formatNumber(orderData.total)}`));
+            encoder.bold(false);
+            encoder.line("================================");
+
+            // Status Bayar
+            encoder.line(`Pembayaran: ${orderData.payment_status === 'lunas' ? 'LUNAS' : 'BELUM LUNAS'}`);
+            if (orderData.payment_status === 'lunas' && orderData.payment_method) {
+                encoder.line(`Metode    : ${orderData.payment_method.toUpperCase()}`);
+            }
+
+            if (orderData.estimated_done) {
+                encoder.line("--------------------------------");
+                encoder.line(`Est. Selesai: ${orderData.estimated_done}`);
+            }
+
+            encoder.feed(1);
+            encoder.alignCenter();
+            encoder.line("Terima kasih atas");
+            encoder.line("kepercayaan Anda!");
+            encoder.line("Simpan struk ini sebagai");
+            encoder.line("bukti pembayaran");
+            encoder.feed(4); // spasi potong kertas
+        }
         
         const bytes = encoder.getBytes();
         
