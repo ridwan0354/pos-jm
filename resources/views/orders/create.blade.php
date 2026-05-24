@@ -269,18 +269,36 @@
                 @if(isset($services['ongkir']) && $services['ongkir']->count())
                 <label class="form-label">Pilih Ongkir</label>
                 <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">
+                    {{-- Tanpa Ongkir Option --}}
+                    <label style="cursor:pointer;display:block;">
+                        <input type="radio" name="ongkir_id" value=""
+                               data-price="0" data-name="Tanpa Ongkir"
+                               style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;"
+                               checked onchange="recalcTotal()">
+                        <div id="ongkir_card_none"
+                             onclick="setActiveCard('ongkir_card_none', 'ongkir_group')"
+                             style="padding:14px 12px;border-radius:14px;background:#f0fdf9;border:2px solid #0d9488;transition:all .2s;">
+                            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                                <div id="ongkir_dot_none" style="width:9px;height:9px;border-radius:50%;background:#0d9488;transition:background .15s;"></div>
+                                <span id="ongkir_check_none" class="ms ms-fill" style="font-size:17px;color:#0d9488;transition:color .15s;">check_circle</span>
+                            </div>
+                            <p style="font-size:14px;font-weight:700;color:#0f172a;margin:0 0 3px;">Tanpa Ongkir</p>
+                            <p style="font-size:12px;color:#64748b;margin:0;">Rp 0</p>
+                        </div>
+                    </label>
+
                     @foreach($services['ongkir'] as $svc)
                     <label style="cursor:pointer;display:block;">
                         <input type="radio" name="ongkir_id" value="{{ $svc->id }}"
                                data-price="{{ $svc->price }}" data-name="{{ $svc->name }}"
                                style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;"
-                               {{ $loop->first?'checked':'' }} onchange="recalcTotal()">
+                               onchange="recalcTotal()">
                         <div id="ongkir_card_{{ $svc->id }}"
                              onclick="setActiveCard('ongkir_card_{{ $svc->id }}', 'ongkir_group')"
-                             style="padding:14px 12px;border-radius:14px;background:{{ $loop->first?'#f0fdf9':'#f8fafc' }};border:2px solid {{ $loop->first?'#0d9488':'transparent' }};transition:all .2s;">
+                             style="padding:14px 12px;border-radius:14px;background:#f8fafc;border:2px solid transparent;transition:all .2s;">
                             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-                                <div id="ongkir_dot_{{ $svc->id }}" style="width:9px;height:9px;border-radius:50%;background:{{ $loop->first?'#0d9488':'#e2e8f0' }};transition:background .15s;"></div>
-                                <span id="ongkir_check_{{ $svc->id }}" class="ms ms-fill" style="font-size:17px;color:{{ $loop->first?'#0d9488':'transparent' }};transition:color .15s;">check_circle</span>
+                                <div id="ongkir_dot_{{ $svc->id }}" style="width:9px;height:9px;border-radius:50%;background:#e2e8f0;transition:background .15s;"></div>
+                                <span id="ongkir_check_{{ $svc->id }}" class="ms ms-fill" style="font-size:17px;color:transparent;transition:color .15s;">check_circle</span>
                             </div>
                             <p style="font-size:14px;font-weight:700;color:#0f172a;margin:0 0 3px;">{{ $svc->name }}</p>
                             <p style="font-size:12px;color:#64748b;margin:0;">Rp {{ number_format($svc->price,0,',','.') }}</p>
@@ -554,40 +572,46 @@ function switchCategory(cat) {
 }
 
 function recalcTotal() {
-    const cat = document.querySelector('input[name="category"]:checked')?.value ?? 'kiloan';
     let subtotal = 0;
     let lines = [];
 
-    if (cat === 'kiloan') {
+    // 1. Kiloan
+    const weight = parseFloat(document.getElementById('weightInput').value) || 0;
+    if (weight > 0) {
         const svcInput  = document.querySelector('input[name="service_type"]:checked');
-        const weight    = parseFloat(document.getElementById('weightInput').value) || 0;
         const pricePerKg = parseFloat(svcInput?.dataset?.price) || 7000;
         const name       = svcInput?.dataset?.name || 'Layanan Kiloan';
-        subtotal = weight * pricePerKg;
+        const kiloanSub = weight * pricePerKg;
+        subtotal += kiloanSub;
         lines.push({
             label: name,
-            detail: `${weight > 0 ? weight : '0'} kg × Rp ${pricePerKg.toLocaleString('id-ID')}`,
-            value: subtotal
+            detail: `${weight} kg × Rp ${pricePerKg.toLocaleString('id-ID')}`,
+            value: kiloanSub
         });
     }
 
-    if (cat === 'satuan') {
-        document.querySelectorAll('input[id^="sqty_"]').forEach(inp => {
-            const qty = parseInt(inp.value) || 0;
-            if (qty <= 0) return;
-            const price = parseFloat(inp.dataset.price) || 0;
-            const name  = inp.dataset.name || 'Item';
-            subtotal += price * qty;
-            lines.push({ label: name, detail: qty > 1 ? `${qty} × Rp ${price.toLocaleString('id-ID')}` : '', value: price * qty });
+    // 2. Satuan
+    document.querySelectorAll('input[id^="sqty_"]').forEach(inp => {
+        const qty = parseInt(inp.value) || 0;
+        if (qty <= 0) return;
+        const price = parseFloat(inp.dataset.price) || 0;
+        const name  = inp.dataset.name || 'Item';
+        const satuanSub = price * qty;
+        subtotal += satuanSub;
+        lines.push({ 
+            label: name, 
+            detail: qty > 1 ? `${qty} × Rp ${price.toLocaleString('id-ID')}` : '', 
+            value: satuanSub 
         });
-    }
+    });
 
-    if (cat === 'ongkir') {
-        const ongkirInput = document.querySelector('input[name="ongkir_id"]:checked');
-        if (ongkirInput) {
-            const price = parseFloat(ongkirInput.dataset.price) || 0;
+    // 3. Ongkir
+    const ongkirInput = document.querySelector('input[name="ongkir_id"]:checked');
+    if (ongkirInput) {
+        const price = parseFloat(ongkirInput.dataset.price) || 0;
+        if (price > 0) {
             const name  = ongkirInput.dataset.name || 'Ongkir';
-            subtotal = price;
+            subtotal += price;
             lines.push({ label: name, detail: '', value: price });
         }
     }
@@ -603,9 +627,8 @@ function recalcTotal() {
     const total = Math.max(0, subtotal + surcharge - discount);
 
     const summaryEl = document.getElementById('summaryItems');
-    const emptyMsg  = cat === 'satuan' ? 'Pilih item satuan…' : (cat === 'ongkir' ? 'Pilih layanan ongkir…' : 'Masukkan berat cucian…');
     if (lines.length === 0) {
-        summaryEl.innerHTML = `<div style="color:#94a3b8;font-style:italic;text-align:center;padding:8px 0;">${emptyMsg}</div>`;
+        summaryEl.innerHTML = `<div style="color:#94a3b8;font-style:italic;text-align:center;padding:8px 0;">Masukkan detail layanan…</div>`;
     } else {
         summaryEl.innerHTML = lines.map(l => `
             <div style="padding-bottom:8px;border-bottom:1px solid #f8fafc;">

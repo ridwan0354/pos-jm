@@ -100,6 +100,63 @@
             <h2 class="font-bold text-ink mb-4 flex items-center gap-2">
                 <span class="ms ms-fill text-primary">local_laundry_service</span> Detail Layanan
             </h2>
+            
+            @if($order->items->count() > 0)
+            {{-- Itemized List --}}
+            <div class="space-y-2.5 mb-4">
+                @foreach($order->items as $item)
+                <div class="flex justify-between items-center bg-slate-50 rounded-xl p-3 text-sm">
+                    <div>
+                        <p class="font-bold text-ink">{{ $item->name }}</p>
+                        <p class="text-xs text-ink-muted">
+                            {{ $item->qty }} {{ $item->unit }} @ Rp {{ number_format($item->price, 0, ',', '.') }}
+                        </p>
+                    </div>
+                    <span class="font-semibold text-ink">Rp {{ number_format($item->subtotal, 0, ',', '.') }}</span>
+                </div>
+                @endforeach
+            </div>
+            
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm mt-4">
+                <div class="bg-slate-50 rounded-xl p-3">
+                    <p class="text-xs text-ink-muted mb-1">Kecepatan</p>
+                    <p class="font-semibold text-ink capitalize">{{ $order->speed }}</p>
+                </div>
+                <div class="bg-slate-50 rounded-xl p-3">
+                    <p class="text-xs text-ink-muted mb-1 flex items-center gap-1">
+                        <span>Parfum</span>
+                        <span class="ms text-ink-faint" style="font-size: 11px;">edit</span>
+                    </p>
+                    <form action="{{ route('orders.updatePerfume', $order) }}" method="POST" id="update-perfume-form-items">
+                        @csrf @method('PATCH')
+                        <select name="perfume" onchange="document.getElementById('update-perfume-form-items').submit()" 
+                                style="background:transparent; border:none; padding:0; margin:0; font-weight:600; color:#0f172a; font-size:14px; cursor:pointer; outline:none; width:100%;"
+                                class="capitalize">
+                            <option value="harum" {{ $order->perfume === 'harum' ? 'selected' : '' }}>🌸 Harum</option>
+                            <option value="sakura" {{ $order->perfume === 'sakura' ? 'selected' : '' }}>🌸 Sakura</option>
+                            <option value="lavender" {{ $order->perfume === 'lavender' ? 'selected' : '' }}>💜 Lavender</option>
+                            <option value="tanpa" {{ $order->perfume === 'tanpa' ? 'selected' : '' }}>❌ Tanpa</option>
+                        </select>
+                    </form>
+                </div>
+                @if($order->estimated_done)
+                <div class="bg-slate-50 rounded-xl p-3">
+                    <p class="text-xs text-ink-muted mb-1">Est. Selesai</p>
+                    <p class="font-semibold text-ink">{{ $order->estimated_done->format('d M Y') }}</p>
+                </div>
+                @endif
+                @if($order->ironingStaff)
+                <div class="bg-slate-50 rounded-xl p-3 col-span-2 md:col-span-1">
+                    <p class="text-xs text-ink-muted mb-1">PJ Setrika</p>
+                    <p class="font-semibold text-ink">{{ $order->ironingStaff->name }}</p>
+                    @if($order->ironing_fee)
+                    <p class="text-xs text-primary mt-0.5">Fee: Rp {{ number_format($order->ironing_fee,0,',','.') }}</p>
+                    @endif
+                </div>
+                @endif
+            </div>
+            @else
+            {{-- Original Single Service Info --}}
             <div class="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                 <div class="bg-slate-50 rounded-xl p-3">
                     <p class="text-xs text-ink-muted mb-1">Kategori</p>
@@ -117,12 +174,23 @@
                     <p class="font-semibold text-ink">{{ $order->weight }} kg</p>
                 </div>
                 @endif
-                @if($order->perfume)
                 <div class="bg-slate-50 rounded-xl p-3">
-                    <p class="text-xs text-ink-muted mb-1">Parfum</p>
-                    <p class="font-semibold text-ink capitalize">{{ $order->perfume }}</p>
+                    <p class="text-xs text-ink-muted mb-1 flex items-center gap-1">
+                        <span>Parfum</span>
+                        <span class="ms text-ink-faint" style="font-size: 11px;">edit</span>
+                    </p>
+                    <form action="{{ route('orders.updatePerfume', $order) }}" method="POST" id="update-perfume-form-static">
+                        @csrf @method('PATCH')
+                        <select name="perfume" onchange="document.getElementById('update-perfume-form-static').submit()" 
+                                style="background:transparent; border:none; padding:0; margin:0; font-weight:600; color:#0f172a; font-size:14px; cursor:pointer; outline:none; width:100%;"
+                                class="capitalize">
+                            <option value="harum" {{ $order->perfume === 'harum' ? 'selected' : '' }}>🌸 Harum</option>
+                            <option value="sakura" {{ $order->perfume === 'sakura' ? 'selected' : '' }}>🌸 Sakura</option>
+                            <option value="lavender" {{ $order->perfume === 'lavender' ? 'selected' : '' }}>💜 Lavender</option>
+                            <option value="tanpa" {{ $order->perfume === 'tanpa' ? 'selected' : '' }}>❌ Tanpa</option>
+                        </select>
+                    </form>
                 </div>
-                @endif
                 <div class="bg-slate-50 rounded-xl p-3">
                     <p class="text-xs text-ink-muted mb-1">Kecepatan</p>
                     <p class="font-semibold text-ink capitalize">{{ $order->speed }}</p>
@@ -143,6 +211,7 @@
                 </div>
                 @endif
             </div>
+            @endif
             @if($order->notes)
             <div class="mt-4 p-3 bg-amber-50 border border-amber-100 rounded-xl text-sm text-ink">
                 <span class="ms text-amber-500 text-sm">sticky_note_2</span>
@@ -301,17 +370,32 @@
         <p style="margin:4px 0;">--------------------------------</p>
 
         <div style="margin-bottom:6px;">
-            @if($order->service_type)
-            <p style="margin:2px 0;"><b>Layanan:</b> {{ str_replace('_',' ', ucfirst($order->service_type)) }}</p>
-            @endif
-            @if($order->weight)
-            <p style="margin:2px 0;"><b>Berat:</b> {{ $order->weight }} kg</p>
-            @endif
-            @if($order->speed)
-            <p style="margin:2px 0;"><b>Kecepatan:</b> {{ ucfirst($order->speed) }}</p>
-            @endif
-            @if($order->perfume)
-            <p style="margin:2px 0;"><b>Parfum:</b> {{ ucfirst($order->perfume) }}</p>
+            @if($order->items->count() > 0)
+                @foreach($order->items as $item)
+                <div style="display:flex;justify-content:space-between;margin:4px 0;">
+                    <span>{{ $item->name }} ({{ $item->qty }} {{ $item->unit }})</span>
+                    <span>Rp {{ number_format($item->subtotal,0,',','.') }}</span>
+                </div>
+                @endforeach
+                @if($order->speed && $order->speed !== 'reguler')
+                <p style="margin:4px 0 2px;"><b>Kecepatan:</b> {{ ucfirst($order->speed) }}</p>
+                @endif
+                @if($order->perfume)
+                <p style="margin:2px 0;"><b>Parfum:</b> {{ ucfirst($order->perfume) }}</p>
+                @endif
+            @else
+                @if($order->service_type)
+                <p style="margin:2px 0;"><b>Layanan:</b> {{ str_replace('_',' ', ucfirst($order->service_type)) }}</p>
+                @endif
+                @if($order->weight)
+                <p style="margin:2px 0;"><b>Berat:</b> {{ $order->weight }} kg</p>
+                @endif
+                @if($order->speed)
+                <p style="margin:2px 0;"><b>Kecepatan:</b> {{ ucfirst($order->speed) }}</p>
+                @endif
+                @if($order->perfume)
+                <p style="margin:2px 0;"><b>Parfum:</b> {{ ucfirst($order->perfume) }}</p>
+                @endif
             @endif
         </div>
 
@@ -546,7 +630,18 @@ function closeNewOrderModal() {
     "total": {{ $order->total }},
     "payment_status": "{{ $order->payment_status }}",
     "payment_method": "{{ $order->payment_method ?? '' }}",
-    "estimated_done": "{{ $order->estimated_done ? $order->estimated_done->format('d/m/Y') : '' }}"
+    "estimated_done": "{{ $order->estimated_done ? $order->estimated_done->format('d/m/Y') : '' }}",
+    "items": [
+        @foreach($order->items as $item)
+        {
+            "name": "{{ $item->name }}",
+            "qty": "{{ $item->qty }}",
+            "unit": "{{ $item->unit }}",
+            "price": {{ $item->price }},
+            "subtotal": {{ $item->subtotal }}
+        }{{ !$loop->last ? ',' : '' }}
+        @endforeach
+    ]
 }
 </script>
 <script>
@@ -792,10 +887,19 @@ async function printBluetooth() {
         encoder.line("--------------------------------");
 
         // Items/Layanan
-        if (orderData.service_type) encoder.line(`Layanan: ${orderData.service_type}`);
-        if (orderData.weight) encoder.line(`Berat: ${orderData.weight} kg`);
-        if (orderData.speed) encoder.line(`Kecepatan: ${orderData.speed}`);
-        if (orderData.perfume) encoder.line(`Parfum: ${orderData.perfume}`);
+        if (orderData.items && orderData.items.length > 0) {
+            orderData.items.forEach(item => {
+                const qtyStr = `${item.qty} ${item.unit}`;
+                encoder.line(formatRow(`${item.name} (${qtyStr})`, `Rp ${formatNumber(item.subtotal)}`));
+            });
+            if (orderData.speed && orderData.speed !== 'Reguler') encoder.line(`Kecepatan: ${orderData.speed}`);
+            if (orderData.perfume) encoder.line(`Parfum: ${orderData.perfume}`);
+        } else {
+            if (orderData.service_type) encoder.line(`Layanan: ${orderData.service_type}`);
+            if (orderData.weight) encoder.line(`Berat: ${orderData.weight} kg`);
+            if (orderData.speed) encoder.line(`Kecepatan: ${orderData.speed}`);
+            if (orderData.perfume) encoder.line(`Parfum: ${orderData.perfume}`);
+        }
         encoder.line("--------------------------------");
 
         const formatNumber = (num) => new Intl.NumberFormat('id-ID').format(num);

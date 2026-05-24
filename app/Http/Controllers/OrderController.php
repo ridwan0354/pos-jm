@@ -56,7 +56,7 @@ class OrderController extends Controller
             'customer_name'       => 'required|string|max:100',
             'customer_phone'      => 'required|string|max:20',
             'customer_id'         => 'nullable|exists:customers,id',
-            'category'            => 'required|in:kiloan,satuan,ongkir',
+            'category'            => 'nullable|in:kiloan,satuan,ongkir',
             'service_type'        => 'nullable|string',
             'weight'              => 'nullable|numeric|min:0',
             'satuan_quantities'   => 'nullable|array',
@@ -111,12 +111,22 @@ class OrderController extends Controller
                 default   => today()->addDays(3),
             };
 
+            // Determine primary category
+            $primaryCategory = 'kiloan';
+            if (!empty($validated['weight']) && (float)$validated['weight'] > 0) {
+                $primaryCategory = 'kiloan';
+            } elseif (!empty($validated['satuan_quantities']) && collect($validated['satuan_quantities'])->sum() > 0) {
+                $primaryCategory = 'satuan';
+            } elseif (!empty($validated['ongkir_id'])) {
+                $primaryCategory = 'ongkir';
+            }
+
             $order = Order::create([
                 'order_number'    => Order::generateOrderNumber(),
                 'customer_id'     => $customer?->id,
                 'customer_name'   => $validated['customer_name'],
                 'customer_phone'  => $validated['customer_phone'],
-                'category'        => $validated['category'],
+                'category'        => $primaryCategory,
                 'service_type'    => $validated['service_type'] ?? null,
                 'weight'          => $validated['weight'] ?? null,
                 'perfume'         => $validated['perfume'] ?? null,
@@ -136,6 +146,58 @@ class OrderController extends Controller
                 'ironing_fee'      => $ironingFee,
             ]);
             $createdOrder = $order;
+
+            // Save items to order_items
+            // 1. Kiloan
+            if (!empty($validated['weight']) && (float)$validated['weight'] > 0 && !empty($validated['service_type'])) {
+                $svc = Service::find($validated['service_type']);
+                $name = $svc ? $svc->name : str_replace('_', ' ', ucfirst($validated['service_type']));
+                $price = $svc ? (float)$svc->price : 7000;
+                $qty = (float)$validated['weight'];
+                
+                $order->items()->create([
+                    'service_id' => $svc ? $svc->id : null,
+                    'name' => $name,
+                    'unit' => 'kg',
+                    'price' => $price,
+                    'qty' => $qty,
+                    'subtotal' => $price * $qty,
+                ]);
+            }
+
+            // 2. Satuan
+            if (!empty($validated['satuan_quantities'])) {
+                foreach ($validated['satuan_quantities'] as $itemId => $qty) {
+                    $qty = (int) $qty;
+                    if ($qty <= 0) continue;
+                    $svc = Service::find($itemId);
+                    if ($svc) {
+                        $order->items()->create([
+                            'service_id' => $svc->id,
+                            'name' => $svc->name,
+                            'unit' => 'pcs',
+                            'price' => (float)$svc->price,
+                            'qty' => $qty,
+                            'subtotal' => (float)$svc->price * $qty,
+                        ]);
+                    }
+                }
+            }
+
+            // 3. Ongkir
+            if (!empty($validated['ongkir_id'])) {
+                $svc = Service::find($validated['ongkir_id']);
+                if ($svc) {
+                    $order->items()->create([
+                        'service_id' => $svc->id,
+                        'name' => $svc->name,
+                        'unit' => 'trip',
+                        'price' => (float)$svc->price,
+                        'qty' => 1,
+                        'subtotal' => (float)$svc->price,
+                    ]);
+                }
+            }
 
             // Update customer stats
             if ($customer) {
@@ -218,35 +280,55 @@ class OrderController extends Controller
         return back()->with('success', 'Pembayaran berhasil dicatat!');
     }
 
+    public function updatePerfume(Request $request, Order $order)
+    {
+        $request->validate(['perfume' => 'required|string|in:harum,sakura,lavender,tanpa']);
+        $order->update(['perfume' => $request->perfume]);
+
+        return back()->with('success', 'Parfum pesanan berhasil diperbarui!');
+    }
+
     private function calcBasePrice(array $data): float
     {
-        if ($data['category'] === 'kiloan') {
-            $prices = [
-                'cuci_setrika' => 7000,
-                'cuci_kering'  => 5000,
-                'setrika_saja' => 4000,
-            ];
-            $pricePerKg = $prices[$data['service_type']] ?? 7000;
-            return ($data['weight'] ?? 0) * $pricePerKg;
+        $total = 0;
+
+        // 1. Kiloan
+        if (!empty($data['weight']) && (float)$data['weight'] > 0 && !empty($data['service_type'])) {
+            $svc = Service::find($data['service_type']);
+            if ($svc) {
+                $total += (float)$data['weight'] * (float)$svc->price;
+            } else {
+                $prices = [
+                    'cuci_setrika' => 7000,
+                    'cuci_kering'  => 5000,
+                    'setrika_saja' => 4000,
+                ];
+                $pricePerKg = $prices[$data['service_type']] ?? 7000;
+                $total += (float)$data['weight'] * $pricePerKg;
+            }
         }
 
-        if ($data['category'] === 'satuan' && !empty($data['satuan_quantities'])) {
-            $total = 0;
+        // 2. Satuan
+        if (!empty($data['satuan_quantities'])) {
             foreach ($data['satuan_quantities'] as $itemId => $qty) {
                 $qty = (int) $qty;
                 if ($qty <= 0) continue;
                 $svc = Service::find($itemId);
-                if ($svc) $total += $svc->price * $qty;
+                if ($svc) {
+                    $total += (float)$svc->price * $qty;
+                }
             }
-            return $total;
         }
 
-        if ($data['category'] === 'ongkir' && !empty($data['ongkir_id'])) {
+        // 3. Ongkir
+        if (!empty($data['ongkir_id'])) {
             $svc = Service::find($data['ongkir_id']);
-            return $svc ? (float) $svc->price : 0;
+            if ($svc) {
+                $total += (float)$svc->price;
+            }
         }
 
-        return 0;
+        return $total;
     }
 
     private function updateMemberLevel(Customer $customer): void

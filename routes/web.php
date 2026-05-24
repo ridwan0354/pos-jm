@@ -39,6 +39,7 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('orders', OrderController::class)->only(['index','create','store','show','destroy']);
     Route::patch('/orders/{order}/status',  [OrderController::class, 'updateStatus'])->name('orders.updateStatus');
     Route::patch('/orders/{order}/paid',    [OrderController::class, 'markPaid'])->name('orders.markPaid');
+    Route::patch('/orders/{order}/perfume', [OrderController::class, 'updatePerfume'])->name('orders.updatePerfume');
 
     // Customers
     Route::resource('customers', CustomerController::class)->only(['index','show','store','update','destroy']);
