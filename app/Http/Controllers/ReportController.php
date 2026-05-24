@@ -71,9 +71,24 @@ class ReportController extends Controller
         }
 
         // Orders by status
-        $byStatus = Order::whereBetween('created_at', [$from, $to])
-                         ->select('status', DB::raw('count(*) as total'))
-                         ->groupBy('status')->pluck('total', 'status');
+        $rawStatus = Order::whereBetween('created_at', [$from, $to])
+                          ->select('status', DB::raw('count(*) as total'))
+                          ->groupBy('status')->pluck('total', 'status');
+
+        $byStatus = collect([
+            'antri'      => 0,
+            'proses'     => 0,
+            'selesai'    => 0,
+            'dibatalkan' => 0,
+        ]);
+
+        foreach ($rawStatus as $status => $count) {
+            if (in_array($status, ['proses', 'dicuci', 'dijemur', 'disetrika', 'siap_ambil'])) {
+                $byStatus['proses'] += $count;
+            } else {
+                $byStatus[$status] = $count;
+            }
+        }
 
         // Orders by service type
         $byService = Order::whereBetween('created_at', [$from, $to])

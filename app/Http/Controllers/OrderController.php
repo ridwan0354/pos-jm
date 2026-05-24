@@ -27,7 +27,11 @@ class OrderController extends Controller
         }
 
         if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            if ($request->status === 'proses') {
+                $query->whereIn('status', ['proses', 'dicuci', 'dijemur', 'disetrika', 'siap_ambil']);
+            } else {
+                $query->where('status', $request->status);
+            }
         }
 
         if ($request->filled('payment_status')) {
@@ -262,7 +266,7 @@ class OrderController extends Controller
 
     public function updateStatus(Request $request, Order $order)
     {
-        $request->validate(['status' => 'required|in:antri,dicuci,dijemur,disetrika,siap_ambil,selesai,dibatalkan']);
+        $request->validate(['status' => 'required|in:antri,proses,selesai,dibatalkan,dicuci,dijemur,disetrika,siap_ambil']);
         $order->update(['status' => $request->status]);
 
         return back()->with('success', 'Status pesanan diperbarui!');

@@ -237,14 +237,21 @@
                 <span class="ms ms-fill text-primary">timeline</span> Progress Antrian
             </h2>
             @php
-                $stages = ['antri','dicuci','dijemur','disetrika','siap_ambil','selesai'];
-                $currentIdx = array_search($order->status, $stages);
+                $stages = ['antri', 'proses', 'selesai'];
+                $statusMap = [
+                    'dicuci'     => 'proses',
+                    'dijemur'    => 'proses',
+                    'disetrika'  => 'proses',
+                    'siap_ambil' => 'proses'
+                ];
+                $normalizedStatus = $statusMap[$order->status] ?? $order->status;
+                $currentIdx = array_search($normalizedStatus, $stages);
             @endphp
             <div class="flex items-center">
                 @foreach($stages as $i => $stage)
                 @php
                     $done = $currentIdx !== false && $i <= $currentIdx;
-                    $current = $order->status === $stage;
+                    $current = $normalizedStatus === $stage;
                     $icon = \App\Models\Order::$statusIcons[$stage];
                     $label = \App\Models\Order::$statusLabels[$stage];
                 @endphp
@@ -265,7 +272,7 @@
             <form action="{{ route('orders.updateStatus', $order) }}" method="POST" class="mt-5 flex flex-wrap gap-2">
                 @csrf @method('PATCH')
                 @php
-                    $nextStatuses = array_slice($stages, $currentIdx !== false ? $currentIdx+1 : 0, 2);
+                    $nextStatuses = array_slice($stages, $currentIdx !== false ? $currentIdx+1 : 0, 1);
                     $prevStatus   = ($currentIdx !== false && $currentIdx > 0) ? $stages[$currentIdx - 1] : null;
                 @endphp
 

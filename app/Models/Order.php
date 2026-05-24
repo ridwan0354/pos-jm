@@ -34,10 +34,7 @@ class Order extends Model
     // Status labels in Indonesian
     public static array $statusLabels = [
         'antri'      => 'Antri',
-        'dicuci'     => 'Dicuci',
-        'dijemur'    => 'Dijemur',
-        'disetrika'  => 'Disetrika',
-        'siap_ambil' => 'Siap Ambil',
+        'proses'     => 'Proses',
         'selesai'    => 'Selesai',
         'dibatalkan' => 'Dibatalkan',
     ];
@@ -45,10 +42,7 @@ class Order extends Model
     // Status badge colors
     public static array $statusColors = [
         'antri'      => 'bg-slate-100 text-slate-600',
-        'dicuci'     => 'bg-blue-100 text-blue-700',
-        'dijemur'    => 'bg-yellow-100 text-yellow-700',
-        'disetrika'  => 'bg-purple-100 text-purple-700',
-        'siap_ambil' => 'bg-green-100 text-green-700',
+        'proses'     => 'bg-blue-100 text-blue-700',
         'selesai'    => 'bg-teal-100 text-teal-700',
         'dibatalkan' => 'bg-red-100 text-red-600',
     ];
@@ -56,10 +50,7 @@ class Order extends Model
     // Status icons
     public static array $statusIcons = [
         'antri'      => 'hourglass_empty',
-        'dicuci'     => 'water_drop',
-        'dijemur'    => 'wb_sunny',
-        'disetrika'  => 'iron',
-        'siap_ambil' => 'check_circle',
+        'proses'     => 'autorenew',
         'selesai'    => 'task_alt',
         'dibatalkan' => 'cancel',
     ];
@@ -88,17 +79,38 @@ class Order extends Model
 
     public function getStatusLabelAttribute(): string
     {
-        return self::$statusLabels[$this->status] ?? $this->status;
+        $statusMap = [
+            'dicuci'     => 'proses',
+            'dijemur'    => 'proses',
+            'disetrika'  => 'proses',
+            'siap_ambil' => 'proses'
+        ];
+        $normalized = $statusMap[$this->status] ?? $this->status;
+        return self::$statusLabels[$normalized] ?? $normalized;
     }
 
     public function getStatusColorAttribute(): string
     {
-        return self::$statusColors[$this->status] ?? 'bg-gray-100 text-gray-600';
+        $statusMap = [
+            'dicuci'     => 'proses',
+            'dijemur'    => 'proses',
+            'disetrika'  => 'proses',
+            'siap_ambil' => 'proses'
+        ];
+        $normalized = $statusMap[$this->status] ?? $this->status;
+        return self::$statusColors[$normalized] ?? 'bg-gray-100 text-gray-600';
     }
 
     public function getStatusIconAttribute(): string
     {
-        return self::$statusIcons[$this->status] ?? 'help';
+        $statusMap = [
+            'dicuci'     => 'proses',
+            'dijemur'    => 'proses',
+            'disetrika'  => 'proses',
+            'siap_ambil' => 'proses'
+        ];
+        $normalized = $statusMap[$this->status] ?? $this->status;
+        return self::$statusIcons[$normalized] ?? 'help';
     }
 
     public static function generateOrderNumber(): string

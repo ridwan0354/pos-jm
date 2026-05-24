@@ -152,15 +152,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Status Donut Chart
     const statusData = @json($byStatus);
-    const statusLabels = { antri:'Antri', dicuci:'Dicuci', dijemur:'Dijemur', disetrika:'Disetrika', siap_ambil:'Siap Ambil', selesai:'Selesai', dibatalkan:'Batal' };
-    const statusColors = ['#94a3b8','#3b82f6','#f59e0b','#a855f7','#10b981','#0d9488','#ef4444'];
+    const statusLabels = { antri:'Antri', proses:'Proses', selesai:'Selesai', dibatalkan:'Batal' };
+    const colorMap = { antri:'#94a3b8', proses:'#3b82f6', selesai:'#0d9488', dibatalkan:'#ef4444' };
     const keys = Object.keys(statusData);
     if (keys.length) {
         new Chart(document.getElementById('statusChart').getContext('2d'), {
             type:'doughnut',
             data:{
                 labels: keys.map(k=>statusLabels[k]??k),
-                datasets:[{data:keys.map(k=>statusData[k]),backgroundColor:statusColors,borderWidth:0,hoverOffset:6}]
+                datasets:[{data:keys.map(k=>statusData[k]),backgroundColor:keys.map(k=>colorMap[k]??'#94a3b8'),borderWidth:0,hoverOffset:6}]
             },
             options:{
                 responsive:true, maintainAspectRatio:false,
