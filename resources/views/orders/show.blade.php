@@ -237,12 +237,13 @@
                 <span class="ms ms-fill text-primary">timeline</span> Progress Antrian
             </h2>
             @php
-                $stages = ['antri', 'proses', 'selesai'];
+                $stages = ['antri', 'cuci', 'setrika', 'selesai'];
                 $statusMap = [
-                    'dicuci'     => 'proses',
-                    'dijemur'    => 'proses',
-                    'disetrika'  => 'proses',
-                    'siap_ambil' => 'proses'
+                    'dicuci'     => 'cuci',
+                    'dijemur'    => 'cuci',
+                    'proses'     => 'cuci',
+                    'disetrika'  => 'setrika',
+                    'siap_ambil' => 'setrika'
                 ];
                 $normalizedStatus = $statusMap[$order->status] ?? $order->status;
                 $currentIdx = array_search($normalizedStatus, $stages);

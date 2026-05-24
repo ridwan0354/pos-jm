@@ -77,14 +77,17 @@ class ReportController extends Controller
 
         $byStatus = collect([
             'antri'      => 0,
-            'proses'     => 0,
+            'cuci'       => 0,
+            'setrika'    => 0,
             'selesai'    => 0,
             'dibatalkan' => 0,
         ]);
 
         foreach ($rawStatus as $status => $count) {
-            if (in_array($status, ['proses', 'dicuci', 'dijemur', 'disetrika', 'siap_ambil'])) {
-                $byStatus['proses'] += $count;
+            if (in_array($status, ['cuci', 'dicuci', 'dijemur', 'proses'])) {
+                $byStatus['cuci'] += $count;
+            } elseif (in_array($status, ['setrika', 'disetrika', 'siap_ambil'])) {
+                $byStatus['setrika'] += $count;
             } else {
                 $byStatus[$status] = $count;
             }

@@ -152,8 +152,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Status Donut Chart
     const statusData = @json($byStatus);
-    const statusLabels = { antri:'Antri', proses:'Proses', selesai:'Selesai', dibatalkan:'Batal' };
-    const colorMap = { antri:'#94a3b8', proses:'#3b82f6', selesai:'#0d9488', dibatalkan:'#ef4444' };
+    const statusLabels = { antri:'Antri', cuci:'Cuci', setrika:'Strika', selesai:'Selesai', dibatalkan:'Batal' };
+    const colorMap = { antri:'#94a3b8', cuci:'#3b82f6', setrika:'#a855f7', selesai:'#0d9488', dibatalkan:'#ef4444' };
     const keys = Object.keys(statusData);
     if (keys.length) {
         new Chart(document.getElementById('statusChart').getContext('2d'), {
