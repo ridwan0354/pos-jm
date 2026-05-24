@@ -57,4 +57,24 @@ class SettingController extends Controller
 
         return back()->with('success', 'Pengaturan berhasil disimpan!');
     }
+
+    public function showVerifyForm()
+    {
+        return view('admin.verify');
+    }
+
+    public function verify(Request $request)
+    {
+        $request->validate([
+            'password' => 'required|string',
+        ]);
+
+        if ($request->password === 'luzha1420') {
+            session(['admin_verified' => true]);
+            $intended = session()->pull('url.intended', route('dashboard'));
+            return redirect($intended)->with('success', 'Verifikasi berhasil!');
+        }
+
+        return back()->withErrors(['password' => 'Password salah!']);
+    }
 }

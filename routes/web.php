@@ -56,8 +56,16 @@ Route::middleware(['auth'])->group(function () {
     // Staff
     Route::resource('staff', StaffController::class)->only(['index','store','update','destroy']);
 
-    // Reports
-    Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
+    // Admin Verification Routes
+    Route::get('/admin/verify',  [SettingController::class, 'showVerifyForm'])->name('admin.verify');
+    Route::post('/admin/verify', [SettingController::class, 'verify'])->name('admin.verify.post');
+
+    // Protected Admin-only Pages (Reports & Settings)
+    Route::middleware(\App\Http\Middleware\ProtectAdminPages::class)->group(function () {
+        Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
+        Route::get('/settings',  [SettingController::class, 'index'])->name('settings.index');
+        Route::post('/settings', [SettingController::class, 'update'])->name('settings.update');
+    });
 
     // Services (Detail Layanan)
     Route::get('/services',                          [ServiceController::class, 'index'])->name('services.index');
@@ -65,10 +73,6 @@ Route::middleware(['auth'])->group(function () {
     Route::put('/services/{service}',                [ServiceController::class, 'update'])->name('services.update');
     Route::patch('/services/{service}/toggle',       [ServiceController::class, 'toggleActive'])->name('services.toggle');
     Route::delete('/services/{service}',             [ServiceController::class, 'destroy'])->name('services.destroy');
-
-    // Settings
-    Route::get('/settings',  [SettingController::class, 'index'])->name('settings.index');
-    Route::post('/settings', [SettingController::class, 'update'])->name('settings.update');
 
     // Profile (Breeze)
     Route::get('/profile',    [ProfileController::class, 'edit'])->name('profile.edit');
