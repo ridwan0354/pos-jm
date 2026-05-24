@@ -15,6 +15,7 @@ class SettingController extends Controller
             'admin_phone'         => Setting::get('admin_phone', ''),
             'shop_logo'           => Setting::get('shop_logo', ''),
             'referral_commission' => Setting::get('referral_commission', '10'),
+            'shop_footnote'       => Setting::get('shop_footnote', "Terima kasih atas kepercayaan Anda!\nSimpan struk ini sebagai bukti pembayaran"),
         ];
         return view('settings.index', compact('settings'));
     }
@@ -26,6 +27,7 @@ class SettingController extends Controller
             'admin_phone'         => 'required|string|max:20',
             'shop_logo'           => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             'referral_commission' => 'required|numeric|min:0|max:100',
+            'shop_footnote'       => 'nullable|string|max:500',
         ], [
             'shop_name.required'           => 'Nama toko wajib diisi.',
             'admin_phone.required'         => 'Nomor WA admin wajib diisi.',
@@ -45,6 +47,7 @@ class SettingController extends Controller
         }
         Setting::set('admin_phone', $phone);
         Setting::set('referral_commission', $request->referral_commission);
+        Setting::set('shop_footnote', $request->shop_footnote);
 
         if ($request->hasFile('shop_logo')) {
             $old = Setting::get('shop_logo');

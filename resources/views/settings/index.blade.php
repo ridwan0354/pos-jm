@@ -108,6 +108,22 @@
         </div>
     </div>
 
+    {{-- Catatan Kaki Struk --}}
+    <div class="bg-white rounded-2xl p-5 shadow-card border border-surface-border mb-5">
+        <h2 class="font-bold text-ink mb-1 flex items-center gap-2">
+            <span class="ms ms-fill text-primary text-xl">notes</span> Catatan Kaki Struk
+        </h2>
+        <p class="text-xs text-ink-muted mb-5">Teks yang akan muncul di bagian bawah struk pelanggan (system print & bluetooth).</p>
+
+        <div>
+            <label class="form-label">Teks Catatan Kaki</label>
+            <textarea name="shop_footnote" rows="3" class="form-input" style="font-family:inherit;line-height:1.5;resize:none;" placeholder="Terima kasih atas kepercayaan Anda!...">{{ old('shop_footnote', $settings['shop_footnote']) }}</textarea>
+            @error('shop_footnote')
+            <p class="text-xs text-red-500 mt-1">{{ $message }}</p>
+            @enderror
+        </div>
+    </div>
+
     {{-- Pengaturan Printer Bluetooth --}}
     <div class="bg-white rounded-2xl p-5 shadow-card border border-surface-border mb-5">
         <h2 class="font-bold text-ink mb-2 flex items-center gap-2">

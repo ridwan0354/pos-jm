@@ -450,10 +450,7 @@
         <p style="margin:2px 0;"><b>Est. Selesai:</b> {{ $order->estimated_done->format('d/m/Y') }}</p>
         @endif
 
-        <div style="text-align:center; margin-top:14px; border-top:1px dashed #000; padding-top:10px;">
-            <p style="margin:2px 0;">Terima kasih atas kepercayaan Anda!</p>
-            <p style="margin:2px 0; font-size:11px;">Simpan struk ini sebagai bukti pembayaran</p>
-        </div>
+        <div style="text-align:center; margin-top:14px; border-top:1px dashed #000; padding-top:10px; white-space: pre-line; line-height: 1.4;">{{ \App\Models\Setting::get('shop_footnote', "Terima kasih atas kepercayaan Anda!\nSimpan struk ini sebagai bukti pembayaran") }}</div>
     </div>
 </div>
 
@@ -750,6 +747,7 @@ function closeNewOrderModal() {
     "estimated_done": "{{ $order->estimated_done ? $order->estimated_done->format('d/m/Y') : '' }}",
     "notes": {!! json_encode($order->notes) !!},
     "ironing_staff": {!! json_encode($order->ironingStaff ? $order->ironingStaff->name : '') !!},
+    "shop_footnote": {!! json_encode(\App\Models\Setting::get('shop_footnote', "Terima kasih atas kepercayaan Anda!\nSimpan struk ini sebagai bukti pembayaran")) !!},
     "items": [
         @foreach($order->items as $item)
         {
@@ -1262,10 +1260,12 @@ async function printBluetooth(type) {
 
             encoder.feed(1);
             encoder.alignCenter();
-            encoder.line("Terima kasih atas");
-            encoder.line("kepercayaan Anda!");
-            encoder.line("Simpan struk ini sebagai");
-            encoder.line("bukti pembayaran");
+            if (orderData.shop_footnote) {
+                const lines = orderData.shop_footnote.split('\n');
+                lines.forEach(l => {
+                    encoder.line(l);
+                });
+            }
             encoder.feed(4); // spasi potong kertas
         }
         
